@@ -154,12 +154,40 @@ const parseStooqCsv = (text) => {
   return row;
 };
 
+const proxySources = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://cors.isomorphic-git.org/${url}`,
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+const fetchWithFallbacks = async (url) => {
+  try {
+    const directResponse = await fetch(url, { mode: "cors" });
+    if (directResponse.ok) {
+      return { text: await directResponse.text(), source: "direct" };
+    }
+  } catch (error) {
+    // Ignore and try proxies.
+  }
+
+  for (const buildProxy of proxySources) {
+    try {
+      const proxyUrl = buildProxy(url);
+      const response = await fetch(proxyUrl);
+      if (response.ok) {
+        return { text: await response.text(), source: new URL(proxyUrl).hostname };
+      }
+    } catch (error) {
+      // Try next proxy.
+    }
+  }
+  throw new Error("All proxies failed");
+};
+
 const fetchStooqQuote = async (symbol) => {
   const endpoint = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
-  const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`;
-  const response = await fetch(proxy);
-  const text = await response.text();
-  return parseStooqCsv(text);
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  return { quote: parseStooqCsv(text), source };
 };
 
 const updateLiveData = async () => {
@@ -176,11 +204,13 @@ const updateLiveData = async () => {
   };
   const symbols = Object.values(stooqMap);
   let quoteBySymbol = {};
+  let dataSource = null;
   try {
     const results = await Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol)));
     results.forEach((result, index) => {
-      if (result.status === "fulfilled" && result.value) {
-        quoteBySymbol[symbols[index]] = result.value;
+      if (result.status === "fulfilled" && result.value?.quote) {
+        quoteBySymbol[symbols[index]] = result.value.quote;
+        dataSource = result.value.source || dataSource;
       }
     });
   } catch (error) {
@@ -229,12 +259,12 @@ const updateLiveData = async () => {
   const success = Object.keys(quoteBySymbol).length > 0;
   if (liveStatus) {
     liveStatus.textContent = success
-      ? `Last updated: ${now.toLocaleTimeString()}`
+      ? `Last updated: ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
       : "Live data unavailable (check connection)";
   }
   if (fundamentalsStatus) {
     fundamentalsStatus.textContent = success
-      ? `Updated at ${now.toLocaleTimeString()}`
+      ? `Updated at ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
       : "Live feed unavailable";
   }
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");

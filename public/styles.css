@@ -487,10 +487,33 @@ a {
   border: 1px solid rgba(57, 255, 20, 0.2);
   border-radius: 18px;
   padding: 16px;
+  position: relative;
 }
 
 .chart-card canvas {
   width: 100%;
+}
+
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(5, 11, 5, 0.95);
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  opacity: 0;
+  transform: translate(-50%, -12px);
+  transition: opacity 0.12s ease;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.checkbox-field {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .form-actions {

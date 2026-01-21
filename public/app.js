@@ -19,6 +19,9 @@ const silverReset = document.getElementById("silverReset");
 const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
 const silverDistribution = document.getElementById("silverDistribution");
+const silverTooltip = document.getElementById("silverTooltip");
+
+let lastHistogram = null;
 
 const metrics = {
   standard: [
@@ -534,10 +537,13 @@ const drawDistribution = (values, spotPrice) => {
 
   ctx.fillStyle = "rgba(203, 213, 245, 0.7)";
   ctx.font = "12px Manrope, sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(formatDollars(min), padding, height - 6);
-  ctx.textAlign = "right";
-  ctx.fillText(formatDollars(max), width - padding, height - 6);
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i += 1) {
+    const tickX = padding + (chartWidth / ticks) * i;
+    const value = min + ((max - min) / ticks) * i;
+    ctx.textAlign = i === 0 ? "left" : i === ticks ? "right" : "center";
+    ctx.fillText(formatDollars(value), tickX, height - 6);
+  }
 
   if (Number.isFinite(spotPrice)) {
     const clamped = Math.min(Math.max(spotPrice, min), max);
@@ -552,6 +558,18 @@ const drawDistribution = (values, spotPrice) => {
     ctx.textAlign = "center";
     ctx.fillText("Spot", spotX, padding - 6);
   }
+
+  lastHistogram = {
+    min,
+    max,
+    bins,
+    step,
+    counts,
+    padding,
+    chartWidth,
+    barWidth,
+    height,
+  };
 };
 
 const runSilverModel = () => {
@@ -569,6 +587,10 @@ const runSilverModel = () => {
   const squeezeFast = Number(document.getElementById("silverSqueezeFast").value);
   const squeezeSlow = Number(document.getElementById("silverSqueezeSlow").value);
   const identityProb = Number(document.getElementById("silverIdentityProb").value);
+  const premiumPct = Number(document.getElementById("silverPremiumPct").value) / 100;
+  const premiumAlpha = Number(document.getElementById("silverPremiumAlpha").value);
+  const policyBump = Number(document.getElementById("silverPolicyBump").value);
+  const policyActive = document.getElementById("silverPolicyActive").checked;
   const spotPrice = Number(document.getElementById("silverSpotPrice").value);
   const median = quantile(sample, 0.5);
   const p90 = quantile(sample, 0.9);
@@ -584,7 +606,10 @@ const runSilverModel = () => {
     const settleTime = randTriangular(settleMin, settleMode, settleMax);
     const drift = randUniform(driftMin, driftMax);
     const cost = costBase * Math.exp(drift * settleTime);
-    const multiplierBase = randTriangular(multMin, multMode, multMax);
+    const premiumFactor = 1 + premiumPct * premiumAlpha;
+    const policyFactor = policyActive ? policyBump : 0;
+    const multiplierBase =
+      randTriangular(multMin, multMode, multMax) * premiumFactor + policyFactor;
     let multiplier = multiplierBase;
     const squeezeProb = settleTime <= 3 ? squeezeFast : squeezeSlow;
     const draw = Math.random();
@@ -819,6 +844,39 @@ if (silverModelForm) {
   silverModelForm.addEventListener("submit", (event) => {
     event.preventDefault();
     runSilverModel();
+  });
+}
+
+if (silverDistribution && silverTooltip) {
+  silverDistribution.addEventListener("mousemove", (event) => {
+    if (!lastHistogram) {
+      return;
+    }
+    const rect = silverDistribution.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    if (x < lastHistogram.padding || x > lastHistogram.padding + lastHistogram.chartWidth) {
+      silverTooltip.style.opacity = 0;
+      return;
+    }
+    const index = Math.min(
+      lastHistogram.bins - 1,
+      Math.floor((x - lastHistogram.padding) / lastHistogram.barWidth)
+    );
+    const rangeMin = lastHistogram.min + index * lastHistogram.step;
+    const rangeMax = rangeMin + lastHistogram.step;
+    const count = lastHistogram.counts[index] || 0;
+    const total = lastHistogram.counts.reduce((sum, value) => sum + value, 0) || 1;
+    const pct = (count / total) * 100;
+    silverTooltip.textContent = `${formatDollars(rangeMin)}–${formatDollars(
+      rangeMax
+    )} • ${pct.toFixed(1)}%`;
+    silverTooltip.style.left = `${x}px`;
+    silverTooltip.style.top = `${lastHistogram.padding}px`;
+    silverTooltip.style.opacity = 1;
+  });
+
+  silverDistribution.addEventListener("mouseleave", () => {
+    silverTooltip.style.opacity = 0;
   });
 }
 

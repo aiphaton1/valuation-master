@@ -254,6 +254,22 @@
                 <input type="number" step="0.01" id="silverIdentityProb" value="0.01" required />
               </label>
               <label>
+                Premium vs COMEX (%)
+                <input type="number" step="0.1" id="silverPremiumPct" value="4" required />
+              </label>
+              <label>
+                Premium sensitivity (alpha)
+                <input type="number" step="0.1" id="silverPremiumAlpha" value="0.5" required />
+              </label>
+              <label>
+                Policy friction bump
+                <input type="number" step="0.1" id="silverPolicyBump" value="0.3" required />
+              </label>
+              <label class="checkbox-field">
+                <span>Policy friction active</span>
+                <input type="checkbox" id="silverPolicyActive" checked />
+              </label>
+              <label>
                 Current spot price ($/oz)
                 <input type="number" step="0.01" id="silverSpotPrice" value="29.5" required />
               </label>
@@ -303,6 +319,7 @@
           </div>
           <div class="chart-card">
             <canvas id="silverDistribution" height="220"></canvas>
+            <div class="chart-tooltip" id="silverTooltip" role="status"></div>
           </div>
         </div>
         <div class="table-card">

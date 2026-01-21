@@ -59,6 +59,22 @@ Then visit `http://localhost:8000` (Python) or the URL printed by `npx serve` in
 
 ## Troubleshooting
 
+### "Not a git repository" when running git commands
+
+That error means you are not inside the project folder yet. First, ensure the repo exists locally:
+
+```powershell
+git clone https://github.com/aiphaton1/valuation-master.git
+```
+
+Then move into it and re-run your Git command:
+
+```powershell
+cd valuation-master
+```
+
+### `public/` only contains `.gitkeep`
+
 If your `public/` folder only contains a `.gitkeep` file, you likely have an older copy or the
 wrong branch. Make sure you are in the correct repository, then run:
 

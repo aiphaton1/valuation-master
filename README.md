@@ -56,3 +56,15 @@ npx serve public
 ```
 
 Then visit `http://localhost:8000` (Python) or the URL printed by `npx serve` in your browser.
+
+## Troubleshooting
+
+If your `public/` folder only contains a `.gitkeep` file, you likely have an older copy or the
+wrong branch. Make sure you are in the correct repository, then run:
+
+```bash
+git pull
+```
+
+After updating, confirm that `public/index.html`, `public/styles.css`, and `public/app.js` are
+present.

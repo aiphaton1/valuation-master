@@ -8,7 +8,7 @@ def render_kwh_oz_simple_tab():
     st.caption("How much electricity per payable ounce?")
 
     st.subheader("Inputs")
-    st.caption("Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+.")
+    st.info("Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+.")
     grade_gpt = st.number_input("Silver grade (g/t Ag) *", min_value=0.0, value=0.0, step=0.1)
 
     recovery = st.number_input("Recovery (0–1)", min_value=0.0, max_value=1.0, value=0.85, step=0.01)

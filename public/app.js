@@ -6,6 +6,9 @@ const fundamentalCards = document.getElementById("fundamentalCards");
 const fundamentalTableBody = document.getElementById("fundamentalTableBody");
 const valuationForm = document.getElementById("valuationForm");
 const resetCalc = document.getElementById("resetCalc");
+const saveCalc = document.getElementById("saveCalc");
+const savedList = document.getElementById("savedList");
+const clearSaved = document.getElementById("clearSaved");
 const liveStatus = document.getElementById("liveStatus");
 const fundamentalsStatus = document.getElementById("fundamentalsStatus");
 const refreshButton = document.getElementById("refreshData");
@@ -376,6 +379,93 @@ const updateCalculator = () => {
   document.getElementById("resultTierNext").textContent = `Potential: ${tierNext}`;
 };
 
+const readCalcInputs = () => {
+  return {
+    tier: document.getElementById("calcTier").value,
+    price: Number(document.getElementById("calcPrice").value),
+    production: Number(document.getElementById("calcProduction").value),
+    cost: Number(document.getElementById("calcCost").value),
+    mineLife: Number(document.getElementById("calcMineLife").value),
+    discountRate: Number(document.getElementById("calcDiscount").value),
+    shares: Number(document.getElementById("calcShares").value),
+    debt: Number(document.getElementById("calcDebt").value),
+    currentPrice: Number(document.getElementById("calcCurrentPrice").value),
+    fcfMultiple: Number(document.getElementById("calcFcfMultiple").value),
+  };
+};
+
+const readCalcOutputs = () => {
+  return {
+    cashflow: document.getElementById("resultCashflow").textContent,
+    fcf: document.getElementById("resultFcf").textContent,
+    npv: document.getElementById("resultNpv").textContent,
+    evMultiple: document.getElementById("resultEvMultiple").textContent,
+    perShare: document.getElementById("resultPerShare").textContent,
+    upsideMultiple: document.getElementById("resultUpsideMultiple").textContent,
+    upsidePercent: document.getElementById("resultUpsidePercent").textContent,
+    currentMcap: document.getElementById("resultCurrentMcap").textContent,
+    futureMcap: document.getElementById("resultFutureMcap").textContent,
+    tierNow: document.getElementById("resultTierNow").textContent,
+    tierNext: document.getElementById("resultTierNext").textContent,
+  };
+};
+
+const loadSavedResults = () => {
+  if (!savedList) {
+    return;
+  }
+  const saved = JSON.parse(localStorage.getItem("savedCalculations") || "[]");
+  savedList.innerHTML = "";
+  saved.forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.className = "saved-item";
+    item.innerHTML = `
+      <div>
+        <strong>${entry.label}</strong>
+        <span>${entry.summary}</span>
+      </div>
+      <button class="btn ghost small" data-index="${index}">Load</button>
+    `;
+    savedList.appendChild(item);
+  });
+};
+
+const saveCalculation = () => {
+  const inputs = readCalcInputs();
+  const outputs = readCalcOutputs();
+  const saved = JSON.parse(localStorage.getItem("savedCalculations") || "[]");
+  const label = `${inputs.tier.toUpperCase()} • ${outputs.perShare}`;
+  const summary = `Upside ${outputs.upsidePercent} | Multiple ${outputs.upsideMultiple}`;
+  saved.unshift({
+    createdAt: new Date().toISOString(),
+    label,
+    summary,
+    inputs,
+    outputs,
+  });
+  localStorage.setItem("savedCalculations", JSON.stringify(saved.slice(0, 10)));
+  loadSavedResults();
+};
+
+const loadCalculation = (index) => {
+  const saved = JSON.parse(localStorage.getItem("savedCalculations") || "[]");
+  const entry = saved[index];
+  if (!entry) {
+    return;
+  }
+  document.getElementById("calcTier").value = entry.inputs.tier;
+  document.getElementById("calcPrice").value = entry.inputs.price;
+  document.getElementById("calcProduction").value = entry.inputs.production;
+  document.getElementById("calcCost").value = entry.inputs.cost;
+  document.getElementById("calcMineLife").value = entry.inputs.mineLife;
+  document.getElementById("calcDiscount").value = entry.inputs.discountRate;
+  document.getElementById("calcShares").value = entry.inputs.shares;
+  document.getElementById("calcDebt").value = entry.inputs.debt;
+  document.getElementById("calcCurrentPrice").value = entry.inputs.currentPrice;
+  document.getElementById("calcFcfMultiple").value = entry.inputs.fcfMultiple;
+  updateCalculator();
+};
+
 modeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     modeButtons.forEach((btn) => btn.classList.remove("active"));
@@ -410,9 +500,31 @@ if (resetCalc) {
   });
 }
 
+if (saveCalc) {
+  saveCalc.addEventListener("click", saveCalculation);
+}
+
+if (clearSaved) {
+  clearSaved.addEventListener("click", () => {
+    localStorage.removeItem("savedCalculations");
+    loadSavedResults();
+  });
+}
+
+if (savedList) {
+  savedList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-index]");
+    if (!button) {
+      return;
+    }
+    loadCalculation(Number(button.dataset.index));
+  });
+}
+
 renderMetrics("premium");
 renderFundamentals();
 updateCalculator();
+loadSavedResults();
 
 let refreshTimer = null;
 const startAutoRefresh = () => {

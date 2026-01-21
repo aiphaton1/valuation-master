@@ -245,8 +245,16 @@
             <div class="form-actions">
               <button class="btn" type="submit">Calculate value</button>
               <button class="btn ghost" type="button" id="resetCalc">Reset</button>
+              <button class="btn ghost" type="button" id="saveCalc">Save result</button>
             </div>
           </form>
+          <div class="saved-results">
+            <div class="saved-header">
+              <h3>Saved calculations</h3>
+              <button class="btn ghost small" type="button" id="clearSaved">Clear</button>
+            </div>
+            <ul id="savedList"></ul>
+          </div>
           <div class="calc-results" id="calcResults">
             <div class="calc-card">
               <span>Annual cash flow</span>

@@ -869,9 +869,9 @@ if (silverDistribution && silverTooltip) {
     const pct = (count / total) * 100;
     silverTooltip.textContent = `${formatDollars(rangeMin)}–${formatDollars(
       rangeMax
-    )} • ${pct.toFixed(1)}%`;
+    )} • ${pct.toFixed(1)}% (${count})`;
     silverTooltip.style.left = `${x}px`;
-    silverTooltip.style.top = `${lastHistogram.padding}px`;
+    silverTooltip.style.top = `${Math.max(12, event.clientY - rect.top - 20)}px`;
     silverTooltip.style.opacity = 1;
   });
 

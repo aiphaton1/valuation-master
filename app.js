@@ -245,6 +245,17 @@ const updateCalculator = () => {
   const upsidePercent = currentPrice > 0 ? (perShare / currentPrice - 1) * 100 : 0;
   const currentMcap = shares > 0 ? currentPrice * shares : 0;
   const futureMcap = shares > 0 ? perShare * shares : 0;
+  const tierByMcap = (mcap) => {
+    if (mcap >= 10_000_000_000) {
+      return "Major (>$10B)";
+    }
+    if (mcap >= 2_000_000_000) {
+      return "Mid-tier ($2B-$10B)";
+    }
+    return "Junior (<$2B)";
+  };
+  const tierNow = tierByMcap(currentMcap);
+  const tierNext = tierByMcap(futureMcap);
 
   document.getElementById("resultCashflow").textContent = formatCurrency(annualCashflow);
   document.getElementById("resultFcf").textContent = formatCurrency(annualFcf);
@@ -257,6 +268,8 @@ const updateCalculator = () => {
   ).textContent = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
   document.getElementById("resultCurrentMcap").textContent = formatCurrency(currentMcap);
   document.getElementById("resultFutureMcap").textContent = formatCurrency(futureMcap);
+  document.getElementById("resultTierNow").textContent = tierNow;
+  document.getElementById("resultTierNext").textContent = `Potential: ${tierNext}`;
 };
 
 modeButtons.forEach((button) => {

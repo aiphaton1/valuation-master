@@ -25,7 +25,6 @@
         <div class="nav-links">
           <a href="#overview">Overview</a>
           <a href="#fundamentals">Fundamentals</a>
-          <a href="#charts">Charts</a>
           <a href="#calculator">Valuation</a>
         </div>
       </nav>
@@ -315,37 +314,6 @@
         </div>
       </section>
 
-      <section id="charts" class="section section-muted">
-        <div class="section-title">
-          <h2>TradingView charts</h2>
-          <p>
-            Embedded TradingView widgets for quick price context while you work on fundamentals and
-            valuation. Switch symbols inside the widget to explore commodities, miners, or indexes.
-          </p>
-        </div>
-        <div class="tradingview-card">
-          <div class="tradingview-widget-container">
-            <div id="tradingview_chart"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-            <script type="text/javascript">
-              new TradingView.widget({
-                autosize: true,
-                symbol: "TVC:GOLD",
-                interval: "D",
-                timezone: "Etc/UTC",
-                theme: "dark",
-                style: "1",
-                locale: "en",
-                toolbar_bg: "#050a05",
-                enable_publishing: false,
-                allow_symbol_change: true,
-                hide_side_toolbar: false,
-                container_id: "tradingview_chart",
-              });
-            </script>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="footer">

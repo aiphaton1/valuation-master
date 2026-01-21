@@ -225,10 +225,20 @@ const updateLiveData = async () => {
     }
     const close = Number(quote.close);
     const open = Number(quote.open);
+    const high = Number(quote.high);
+    const low = Number(quote.low);
     const dayChange = open ? ((close - open) / open) * 100 : 0;
+    const rangeChange = low ? ((high - low) / low) * 100 : 0;
     item.price = Number.isFinite(close) ? close.toFixed(2) : item.price;
     item.day = formatChange(dayChange);
+    item.week = formatChange(rangeChange);
     item.trend = dayChange >= 0 ? "up" : "down";
+    item.driver = `Live move ${formatChange(dayChange)} vs open`;
+    item.highlights = [
+      `Session range ${formatChange(rangeChange)}`,
+      `High ${Number.isFinite(high) ? high.toFixed(2) : "--"}`,
+      `Low ${Number.isFinite(low) ? low.toFixed(2) : "--"}`,
+    ];
   });
 
   metrics.premium = metrics.premium.map((metric) => {

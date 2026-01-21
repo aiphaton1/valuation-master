@@ -365,7 +365,8 @@ a {
   color: #cbd5f5;
 }
 
-.calculator-form input {
+.calculator-form input,
+.calculator-form select {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid rgba(57, 255, 20, 0.4);

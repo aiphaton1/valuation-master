@@ -207,6 +207,7 @@ const formatCurrency = (value) => {
 };
 
 const updateCalculator = () => {
+  const tier = document.getElementById("calcTier").value;
   const price = Number(document.getElementById("calcPrice").value);
   const production = Number(document.getElementById("calcProduction").value);
   const cost = Number(document.getElementById("calcCost").value);
@@ -215,9 +216,20 @@ const updateCalculator = () => {
   const shares = Number(document.getElementById("calcShares").value) * 1_000_000;
   const debt = Number(document.getElementById("calcDebt").value) * 1_000_000;
   const currentPrice = Number(document.getElementById("calcCurrentPrice").value);
+  const fcfMargin = Number(document.getElementById("calcFcfMargin").value) / 100;
+  const fcfMultipleInput = Number(document.getElementById("calcFcfMultiple").value);
 
   const margin = price - cost;
   const annualCashflow = margin * production;
+  const annualRevenue = price * production;
+  const annualFcf = annualRevenue * fcfMargin;
+  const tierDefaults = {
+    junior: 6,
+    mid: 8,
+    major: 10,
+  };
+  const fcfMultiple = fcfMultipleInput > 0 ? fcfMultipleInput : tierDefaults[tier] || 8;
+  const evFromMultiple = annualFcf * fcfMultiple;
   let npv = 0;
   if (discountRate > 0) {
     npv = annualCashflow * ((1 - Math.pow(1 + discountRate, -mineLife)) / discountRate);
@@ -225,12 +237,16 @@ const updateCalculator = () => {
     npv = annualCashflow * mineLife;
   }
   const npvAfterDebt = npv - debt;
-  const perShare = shares > 0 ? npvAfterDebt / shares : 0;
+  const equityFromMultiple = evFromMultiple - debt;
+  const blendedEquity = (npvAfterDebt + equityFromMultiple) / 2;
+  const perShare = shares > 0 ? blendedEquity / shares : 0;
   const upsideMultiple = currentPrice > 0 ? perShare / currentPrice : 0;
   const upsidePercent = currentPrice > 0 ? (perShare / currentPrice - 1) * 100 : 0;
 
   document.getElementById("resultCashflow").textContent = formatCurrency(annualCashflow);
+  document.getElementById("resultFcf").textContent = formatCurrency(annualFcf);
   document.getElementById("resultNpv").textContent = formatCurrency(npvAfterDebt);
+  document.getElementById("resultEvMultiple").textContent = formatCurrency(evFromMultiple);
   document.getElementById("resultPerShare").textContent = formatCurrency(perShare);
   document.getElementById("resultUpsideMultiple").textContent = `${upsideMultiple.toFixed(2)}x`;
   document.getElementById(

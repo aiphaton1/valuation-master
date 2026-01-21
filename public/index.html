@@ -167,15 +167,24 @@
 
       <section id="calculator" class="section section-muted">
         <div class="section-title">
-          <h2>Valuation calculator</h2>
+          <h2>Valuation calculator (producer tiers)</h2>
           <p>
-            Build your own intrinsic value model for miners or commodity producers using price,
-            cost, and volume assumptions. All calculations run locally in your browser.
+            Estimate value for junior, mid-tier, or major producers using a free cash flow multiple
+            approach inspired by Don Durrett-style tiering. All calculations run locally in your
+            browser.
           </p>
         </div>
         <div class="calculator">
           <form id="valuationForm" class="calculator-form">
             <div class="form-grid">
+              <label>
+                Producer tier
+                <select id="calcTier">
+                  <option value="junior">Junior producer</option>
+                  <option value="mid" selected>Mid-tier producer</option>
+                  <option value="major">Major producer</option>
+                </select>
+              </label>
               <label>
                 Commodity price ($/oz or $/unit)
                 <input type="number" step="0.01" id="calcPrice" value="2412" required />
@@ -208,6 +217,14 @@
                 Current stock price ($)
                 <input type="number" step="0.01" id="calcCurrentPrice" value="12.4" required />
               </label>
+              <label>
+                FCF margin (% of revenue)
+                <input type="number" step="0.1" id="calcFcfMargin" value="30" required />
+              </label>
+              <label>
+                FCF multiple (x)
+                <input type="number" step="0.1" id="calcFcfMultiple" value="8" required />
+              </label>
             </div>
             <div class="form-actions">
               <button class="btn" type="submit">Calculate value</button>
@@ -221,14 +238,24 @@
               <em>Before tax &amp; growth</em>
             </div>
             <div class="calc-card">
+              <span>FCF (annual)</span>
+              <strong id="resultFcf">$980M</strong>
+              <em>Revenue × FCF margin</em>
+            </div>
+            <div class="calc-card">
               <span>NPV (after debt)</span>
               <strong id="resultNpv">$8.6B</strong>
               <em>Discounted over mine life</em>
             </div>
             <div class="calc-card">
+              <span>EV (FCF multiple)</span>
+              <strong id="resultEvMultiple">$7.8B</strong>
+              <em>FCF × multiple</em>
+            </div>
+            <div class="calc-card">
               <span>Intrinsic value / share</span>
               <strong id="resultPerShare">$16.54</strong>
-              <em>Based on inputs</em>
+              <em>Blended NPV &amp; FCF multiple</em>
             </div>
             <div class="calc-card">
               <span>Upside multiple</span>

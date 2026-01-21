@@ -486,41 +486,71 @@ const drawDistribution = (values, spotPrice) => {
   if (!ctx) {
     return;
   }
-  const width = silverDistribution.width;
-  const height = silverDistribution.height;
-  ctx.clearRect(0, 0, width, height);
+  const dpr = window.devicePixelRatio || 1;
+  const displayWidth = silverDistribution.clientWidth || 600;
+  const displayHeight = silverDistribution.clientHeight || 220;
+  silverDistribution.width = displayWidth * dpr;
+  silverDistribution.height = displayHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const bins = 24;
+  const width = displayWidth;
+  const height = displayHeight;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(5, 11, 5, 0.6)";
+  ctx.fillRect(0, 0, width, height);
+
+  const min = quantile(values, 0.02);
+  const max = quantile(values, 0.98);
+  const bins = 28;
   const step = (max - min) / bins || 1;
   const counts = new Array(bins).fill(0);
   values.forEach((value) => {
-    const index = Math.min(bins - 1, Math.floor((value - min) / step));
+    const clamped = Math.min(Math.max(value, min), max);
+    const index = Math.min(bins - 1, Math.floor((clamped - min) / step));
     counts[index] += 1;
   });
   const maxCount = Math.max(...counts, 1);
-  const padding = 20;
+  const padding = 24;
   const chartHeight = height - padding * 2;
-  const barWidth = (width - padding * 2) / bins;
+  const chartWidth = width - padding * 2;
+  const barWidth = chartWidth / bins;
 
-  ctx.fillStyle = "rgba(57, 255, 20, 0.2)";
-  ctx.strokeStyle = "rgba(57, 255, 20, 0.6)";
+  ctx.strokeStyle = "rgba(57, 255, 20, 0.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+
   counts.forEach((count, index) => {
     const barHeight = (count / maxCount) * chartHeight;
     const x = padding + index * barWidth;
     const y = height - padding - barHeight;
-    ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+    ctx.fillStyle = "rgba(57, 255, 20, 0.25)";
+    ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+    ctx.strokeStyle = "rgba(57, 255, 20, 0.5)";
+    ctx.strokeRect(x + 1, y, barWidth - 2, barHeight);
   });
+
+  ctx.fillStyle = "rgba(203, 213, 245, 0.7)";
+  ctx.font = "12px Manrope, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(formatDollars(min), padding, height - 6);
+  ctx.textAlign = "right";
+  ctx.fillText(formatDollars(max), width - padding, height - 6);
 
   if (Number.isFinite(spotPrice)) {
     const clamped = Math.min(Math.max(spotPrice, min), max);
-    const spotX = padding + ((clamped - min) / (max - min || 1)) * (width - padding * 2);
+    const spotX = padding + ((clamped - min) / (max - min || 1)) * chartWidth;
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(255, 208, 77, 0.9)";
+    ctx.strokeStyle = "rgba(255, 208, 77, 0.95)";
+    ctx.lineWidth = 2;
     ctx.moveTo(spotX, padding);
     ctx.lineTo(spotX, height - padding);
     ctx.stroke();
+    ctx.fillStyle = "rgba(255, 208, 77, 0.95)";
+    ctx.textAlign = "center";
+    ctx.fillText("Spot", spotX, padding - 6);
   }
 };
 

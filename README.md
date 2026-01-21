@@ -32,8 +32,12 @@ py -m http.server 8000 --directory public
 If neither command works, install Python from https://www.python.org/downloads/ and re-open your
 terminal so the command is available.
 
-If you still see a 404 at `http://localhost:8000/`, open the page directly at
-`http://localhost:8000/index.html`.
+If you still see a 404, double-check you started the server from the repo root and that
+`public/index.html` exists. You can also provide an absolute path instead:
+
+```powershell
+py -m http.server 8000 --directory "C:\\Users\\User\\valuation-master\\public"
+```
 
 ### Option 2: Node.js (any OS)
 

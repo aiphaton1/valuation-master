@@ -214,6 +214,7 @@ const updateCalculator = () => {
   const discountRate = Number(document.getElementById("calcDiscount").value) / 100;
   const shares = Number(document.getElementById("calcShares").value) * 1_000_000;
   const debt = Number(document.getElementById("calcDebt").value) * 1_000_000;
+  const currentPrice = Number(document.getElementById("calcCurrentPrice").value);
 
   const margin = price - cost;
   const annualCashflow = margin * production;
@@ -225,10 +226,16 @@ const updateCalculator = () => {
   }
   const npvAfterDebt = npv - debt;
   const perShare = shares > 0 ? npvAfterDebt / shares : 0;
+  const upsideMultiple = currentPrice > 0 ? perShare / currentPrice : 0;
+  const upsidePercent = currentPrice > 0 ? (perShare / currentPrice - 1) * 100 : 0;
 
   document.getElementById("resultCashflow").textContent = formatCurrency(annualCashflow);
   document.getElementById("resultNpv").textContent = formatCurrency(npvAfterDebt);
   document.getElementById("resultPerShare").textContent = formatCurrency(perShare);
+  document.getElementById("resultUpsideMultiple").textContent = `${upsideMultiple.toFixed(2)}x`;
+  document.getElementById(
+    "resultUpsidePercent"
+  ).textContent = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
 };
 
 modeButtons.forEach((button) => {

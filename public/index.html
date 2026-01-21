@@ -204,6 +204,10 @@
                 Net debt (millions)
                 <input type="number" step="1" id="calcDebt" value="450" required />
               </label>
+              <label>
+                Current stock price ($)
+                <input type="number" step="0.01" id="calcCurrentPrice" value="12.4" required />
+              </label>
             </div>
             <div class="form-actions">
               <button class="btn" type="submit">Calculate value</button>
@@ -225,6 +229,16 @@
               <span>Intrinsic value / share</span>
               <strong id="resultPerShare">$16.54</strong>
               <em>Based on inputs</em>
+            </div>
+            <div class="calc-card">
+              <span>Upside multiple</span>
+              <strong id="resultUpsideMultiple">1.33x</strong>
+              <em>Intrinsic value vs current</em>
+            </div>
+            <div class="calc-card">
+              <span>Upside %</span>
+              <strong id="resultUpsidePercent">+33.4%</strong>
+              <em>Potential return to intrinsic</em>
             </div>
           </div>
         </div>

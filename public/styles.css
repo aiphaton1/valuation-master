@@ -494,6 +494,21 @@ a {
   font-size: 13px;
 }
 
+.tradingview-card {
+  background: rgba(5, 11, 5, 0.85);
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.tradingview-widget-container {
+  min-height: 520px;
+}
+
+.tradingview-widget-container iframe {
+  border-radius: 14px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

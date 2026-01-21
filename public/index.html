@@ -184,6 +184,7 @@
                   <option value="mid" selected>Mid-tier producer</option>
                   <option value="major">Major producer</option>
                 </select>
+                <span class="field-hint">Typical FCF multiples: junior 5x, mid-tier 8x, major 12x.</span>
               </label>
               <label>
                 Commodity price ($/oz or $/unit)
@@ -216,6 +217,10 @@
               <label>
                 Current stock price ($)
                 <input type="number" step="0.01" id="calcCurrentPrice" value="12.4" required />
+              </label>
+              <label>
+                FCF multiple (x)
+                <input type="number" step="0.1" id="calcFcfMultiple" value="8" required />
               </label>
             </div>
             <div class="form-actions">
@@ -258,6 +263,16 @@
               <span>Upside %</span>
               <strong id="resultUpsidePercent">+33.4%</strong>
               <em>Potential return to intrinsic</em>
+            </div>
+            <div class="calc-card">
+              <span>Current market cap</span>
+              <strong id="resultCurrentMcap">$6.4B</strong>
+              <em>Current price × shares</em>
+            </div>
+            <div class="calc-card">
+              <span>Future market cap</span>
+              <strong id="resultFutureMcap">$8.6B</strong>
+              <em>Intrinsic value × shares</em>
             </div>
           </div>
         </div>

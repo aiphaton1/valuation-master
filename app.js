@@ -216,6 +216,7 @@ const updateCalculator = () => {
   const shares = Number(document.getElementById("calcShares").value) * 1_000_000;
   const debt = Number(document.getElementById("calcDebt").value) * 1_000_000;
   const currentPrice = Number(document.getElementById("calcCurrentPrice").value);
+  const fcfMultipleInput = Number(document.getElementById("calcFcfMultiple").value);
 
   const margin = price - cost;
   const annualCashflow = margin * production;
@@ -225,7 +226,7 @@ const updateCalculator = () => {
     mid: 8,
     major: 12,
   };
-  const fcfMultiple = tierDefaults[tier] || 8;
+  const fcfMultiple = fcfMultipleInput > 0 ? fcfMultipleInput : tierDefaults[tier] || 8;
   const marginRatio = annualRevenue > 0 ? Math.max(margin / price, 0) : 0;
   const fcfMargin = Math.min(marginRatio * 0.75, 0.45);
   const annualFcf = annualRevenue * fcfMargin;
@@ -242,6 +243,8 @@ const updateCalculator = () => {
   const perShare = shares > 0 ? blendedEquity / shares : 0;
   const upsideMultiple = currentPrice > 0 ? perShare / currentPrice : 0;
   const upsidePercent = currentPrice > 0 ? (perShare / currentPrice - 1) * 100 : 0;
+  const currentMcap = shares > 0 ? currentPrice * shares : 0;
+  const futureMcap = shares > 0 ? perShare * shares : 0;
 
   document.getElementById("resultCashflow").textContent = formatCurrency(annualCashflow);
   document.getElementById("resultFcf").textContent = formatCurrency(annualFcf);
@@ -252,6 +255,8 @@ const updateCalculator = () => {
   document.getElementById(
     "resultUpsidePercent"
   ).textContent = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
+  document.getElementById("resultCurrentMcap").textContent = formatCurrency(currentMcap);
+  document.getElementById("resultFutureMcap").textContent = formatCurrency(futureMcap);
 };
 
 modeButtons.forEach((button) => {

@@ -365,6 +365,11 @@ a {
   color: #cbd5f5;
 }
 
+.field-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .calculator-form input,
 .calculator-form select {
   padding: 10px 12px;

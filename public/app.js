@@ -18,6 +18,7 @@ const silverModelForm = document.getElementById("silverModelForm");
 const silverReset = document.getElementById("silverReset");
 const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
+const silverDistribution = document.getElementById("silverDistribution");
 
 const metrics = {
   standard: [
@@ -477,6 +478,52 @@ const updateMarginTable = (sample) => {
   });
 };
 
+const drawDistribution = (values, spotPrice) => {
+  if (!silverDistribution) {
+    return;
+  }
+  const ctx = silverDistribution.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  const width = silverDistribution.width;
+  const height = silverDistribution.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const bins = 24;
+  const step = (max - min) / bins || 1;
+  const counts = new Array(bins).fill(0);
+  values.forEach((value) => {
+    const index = Math.min(bins - 1, Math.floor((value - min) / step));
+    counts[index] += 1;
+  });
+  const maxCount = Math.max(...counts, 1);
+  const padding = 20;
+  const chartHeight = height - padding * 2;
+  const barWidth = (width - padding * 2) / bins;
+
+  ctx.fillStyle = "rgba(57, 255, 20, 0.2)";
+  ctx.strokeStyle = "rgba(57, 255, 20, 0.6)";
+  counts.forEach((count, index) => {
+    const barHeight = (count / maxCount) * chartHeight;
+    const x = padding + index * barWidth;
+    const y = height - padding - barHeight;
+    ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+  });
+
+  if (Number.isFinite(spotPrice)) {
+    const clamped = Math.min(Math.max(spotPrice, min), max);
+    const spotX = padding + ((clamped - min) / (max - min || 1)) * (width - padding * 2);
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255, 208, 77, 0.9)";
+    ctx.moveTo(spotX, padding);
+    ctx.lineTo(spotX, height - padding);
+    ctx.stroke();
+  }
+};
+
 const runSilverModel = () => {
   const sample = parseAiscSample(silverAiscSample?.value || "");
   const qMin = Number(document.getElementById("silverQuantileMin").value);
@@ -492,6 +539,7 @@ const runSilverModel = () => {
   const squeezeFast = Number(document.getElementById("silverSqueezeFast").value);
   const squeezeSlow = Number(document.getElementById("silverSqueezeSlow").value);
   const identityProb = Number(document.getElementById("silverIdentityProb").value);
+  const spotPrice = Number(document.getElementById("silverSpotPrice").value);
   const median = quantile(sample, 0.5);
   const p90 = quantile(sample, 0.9);
   const mu = Math.log(median);
@@ -531,7 +579,19 @@ const runSilverModel = () => {
   document.getElementById("silverBand").textContent = `${formatDollars(p05)} – ${formatDollars(p95)}`;
   document.getElementById("silverP99").textContent = formatDollars(p99);
   document.getElementById("silverBaseMedian").textContent = formatDollars(baseMedian);
+  const spotDelta =
+    Number.isFinite(spotPrice) && spotPrice > 0
+      ? ((medianPrice - spotPrice) / spotPrice) * 100
+      : 0;
+  const spotLabel = Number.isFinite(spotPrice)
+    ? `${spotDelta >= 0 ? "+" : ""}${spotDelta.toFixed(1)}% vs spot`
+    : "--";
+  document.getElementById("silverSpotDelta").textContent = spotLabel;
+  document.getElementById("silverSpotNote").textContent = Number.isFinite(spotPrice)
+    ? `Spot ${formatDollars(spotPrice)} vs median`
+    : "Spot price unavailable";
   updateMarginTable(sample);
+  drawDistribution(prices, spotPrice);
 };
 
 const resetSilverModel = () => {

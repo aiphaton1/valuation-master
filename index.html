@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GoldStockData | Premium Market Intelligence</title>
+    <title>Commodities Toolkit</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,214 +13,106 @@
     />
   </head>
   <body>
-    <header class="hero">
+    <header class="app-header">
       <nav class="nav">
         <div class="brand">
-          <span class="brand-mark">GS</span>
+          <span class="brand-mark">CT</span>
           <div>
-            <div class="brand-name">GoldStockData</div>
-            <div class="brand-tag">Precious Metals Intelligence</div>
+            <div class="brand-name">Commodities Toolkit</div>
+            <div class="brand-tag">Private fundamentals &amp; valuation workspace</div>
           </div>
         </div>
         <div class="nav-links">
-          <a href="#solutions">Solutions</a>
-          <a href="#data">Data</a>
+          <a href="#overview">Overview</a>
           <a href="#fundamentals">Fundamentals</a>
           <a href="#calculator">Valuation</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#faq">FAQ</a>
-          <button class="btn ghost">Log in</button>
-          <button class="btn">Start free trial</button>
         </div>
       </nav>
-
-      <section class="hero-content">
-        <div class="hero-copy">
-          <p class="eyebrow">Trusted by gold traders &amp; portfolio managers</p>
-          <h1>Gold market signals that move before the headlines.</h1>
+      <section class="app-summary">
+        <div>
+          <h1>Fundamental metrics &amp; valuation tools for your own research.</h1>
           <p class="lead">
-            GoldStockData delivers live precious metals prices, miner fundamentals, and AI-curated
-            macro alerts in one premium dashboard.
+            A focused, private workspace for commodities and index fundamentals with a built-in
+            valuation calculator. Everything runs locally in your browser.
           </p>
-          <div class="hero-actions">
-            <button class="btn">Upgrade to Premium</button>
-            <button class="btn ghost">View sample data</button>
-          </div>
-          <div class="hero-metrics">
-            <div>
-              <strong>1,200+</strong>
-              <span>Gold &amp; silver tickers</span>
-            </div>
-            <div>
-              <strong>17</strong>
-              <span>Data sources blended</span>
-            </div>
-            <div>
-              <strong>4.9/5</strong>
-              <span>Analyst satisfaction</span>
-            </div>
-          </div>
         </div>
-        <div class="hero-card">
-          <div class="card-header">
-            <h3>Premium Signal Pulse</h3>
-            <span class="badge">Live</span>
+        <div class="summary-cards">
+          <div class="summary-card">
+            <span>Coverage</span>
+            <strong>Commodities + Indexes</strong>
+            <em>Filter by category and search assets</em>
           </div>
-          <div class="signal">
-            <div>
-              <span class="signal-label">Comex Open Interest</span>
-              <strong class="signal-value">+5.2% WoW</strong>
-            </div>
-            <div class="signal-change up">Bullish accumulation</div>
+          <div class="summary-card">
+            <span>Signals</span>
+            <strong>Macro drivers</strong>
+            <em>Key catalysts and trend readouts</em>
           </div>
-          <div class="signal">
-            <div>
-              <span class="signal-label">Central Bank Buying</span>
-              <strong class="signal-value">+18% MoM</strong>
-            </div>
-            <div class="signal-change up">Demand surge</div>
+          <div class="summary-card">
+            <span>Valuation</span>
+            <strong>DCF-style model</strong>
+            <em>Instant intrinsic value per share</em>
           </div>
-          <div class="signal">
-            <div>
-              <span class="signal-label">USD Correlation</span>
-              <strong class="signal-value">-0.73</strong>
-            </div>
-            <div class="signal-change down">Risk-off hedge</div>
-          </div>
-          <button class="btn full">Download premium report</button>
         </div>
       </section>
     </header>
 
     <main>
-      <section id="solutions" class="section">
-        <div class="section-title">
-          <h2>Everything you need to trade the gold cycle</h2>
-          <p>
-            Compare miners, track refinery flows, and monitor sentiment with a single suite built
-            for commodities teams.
-          </p>
-        </div>
-        <div class="grid three">
-          <article class="feature-card">
-            <h3>Macro Alerts</h3>
-            <p>
-              Be the first to know when real rates, CPI surprises, or geopolitics shift gold
-              momentum.
-            </p>
-            <ul>
-              <li>Fed tracker, real yield spreads</li>
-              <li>FX overlay &amp; DXY stress test</li>
-              <li>AI summary every trading day</li>
-            </ul>
-          </article>
-          <article class="feature-card">
-            <h3>Miner Fundamentals</h3>
-            <p>
-              Drill down into AISC, production guidance, and reserve quality for 800+ mining
-              companies.
-            </p>
-            <ul>
-              <li>Normalized cost curves</li>
-              <li>Quarterly earnings recaps</li>
-              <li>Balance sheet health scores</li>
-            </ul>
-          </article>
-          <article class="feature-card">
-            <h3>Premium Research</h3>
-            <p>
-              Exclusive weekly research reports blend our datasets with analyst commentary to
-              surface trade-ready insights.
-            </p>
-            <ul>
-              <li>Directional conviction models</li>
-              <li>Options flow &amp; ETF positioning</li>
-              <li>PDF &amp; API delivery</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section id="data" class="section section-muted">
+      <section id="overview" class="section section-muted">
         <div class="section-title split">
           <div>
-            <h2>Live market dashboard preview</h2>
-            <p>
-              Premium members receive intraday updates with blended datasets from exchanges,
-              refineries, and global central banks.
-            </p>
+            <h2>Market overview</h2>
+            <p>Snapshot of key signals you track every day. Toggle between your saved views.</p>
           </div>
           <div class="toggle">
-            <span>Mode</span>
-            <button class="toggle-btn" data-mode="standard">Standard</button>
+            <span>View</span>
+            <button class="toggle-btn" data-mode="standard">Base</button>
             <button class="toggle-btn active" data-mode="premium">Premium</button>
           </div>
         </div>
-        <div class="grid four" id="metricGrid">
-          <div class="metric">
-            <span>Spot Gold</span>
-            <strong>$2,412.18</strong>
-            <em class="up">+0.82%</em>
-          </div>
-          <div class="metric">
-            <span>Comex Volume</span>
-            <strong>227K</strong>
-            <em class="up">+12% vs avg</em>
-          </div>
-          <div class="metric">
-            <span>ETF Flows</span>
-            <strong>+3.1T</strong>
-            <em class="up">Bullish</em>
-          </div>
-          <div class="metric">
-            <span>Sentiment Score</span>
-            <strong>78</strong>
-            <em class="up">Risk-on</em>
-          </div>
-        </div>
+        <div class="grid four" id="metricGrid"></div>
         <div class="table-card">
           <div class="table-header">
-            <h3>Premium Watchlist</h3>
+            <h3>Priority watchlist</h3>
             <button class="btn ghost small">Export CSV</button>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Ticker</th>
-                <th>Company</th>
+                <th>Asset</th>
+                <th>Theme</th>
                 <th>Signal</th>
                 <th>Momentum</th>
-                <th>Premium Insight</th>
+                <th>Driver</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>GDX</td>
-                <td>VanEck Gold Miners</td>
+                <td>Gold miners</td>
+                <td>Risk-off hedge</td>
                 <td><span class="pill">Breakout</span></td>
                 <td class="up">+6.4%</td>
-                <td>Options flow bullish, real yield decline</td>
+                <td>Real yields lower, ETF inflows</td>
               </tr>
               <tr>
-                <td>NEM</td>
-                <td>Newmont Corp</td>
-                <td><span class="pill">Accumulation</span></td>
-                <td class="up">+3.1%</td>
-                <td>Guidance raised, cost curve improving</td>
-              </tr>
-              <tr>
-                <td>FNV</td>
-                <td>Franco-Nevada</td>
+                <td>WTI crude</td>
+                <td>Supply cuts</td>
                 <td><span class="pill warning">Neutral</span></td>
                 <td class="down">-0.7%</td>
-                <td>Royalty mix defensive, await CPI print</td>
+                <td>SPR refill slows, demand normalizing</td>
               </tr>
               <tr>
-                <td>GOLD</td>
-                <td>Barrick Gold</td>
+                <td>Copper</td>
+                <td>Energy transition</td>
+                <td><span class="pill">Accumulation</span></td>
+                <td class="up">+3.1%</td>
+                <td>Grid capex, mine disruptions</td>
+              </tr>
+              <tr>
+                <td>S&amp;P 500</td>
+                <td>Risk-on</td>
                 <td><span class="pill">Rotation</span></td>
                 <td class="up">+2.2%</td>
-                <td>Asset sale catalyst, reserve upgrades</td>
+                <td>Earnings breadth improving</td>
               </tr>
             </tbody>
           </table>
@@ -337,104 +229,18 @@
           </div>
         </div>
       </section>
-
-      <section id="pricing" class="section">
-        <div class="section-title">
-          <h2>Premium is built for professionals</h2>
-          <p>
-            Choose the plan that scales with your fund or trading desk. Premium unlocks the data
-            used by leading commodity strategists.
-          </p>
-        </div>
-        <div class="pricing">
-          <div class="plan">
-            <h3>Standard</h3>
-            <p class="price">$29 <span>/ month</span></p>
-            <ul>
-              <li>Delayed prices (15 min)</li>
-              <li>20 watchlist tickers</li>
-              <li>Basic macro newsletter</li>
-              <li>Email support</li>
-            </ul>
-            <button class="btn ghost full">Start standard</button>
-          </div>
-          <div class="plan premium">
-            <div class="badge">Most Popular</div>
-            <h3>Premium</h3>
-            <p class="price">$129 <span>/ month</span></p>
-            <ul>
-              <li>Real-time prices &amp; flows</li>
-              <li>Unlimited watchlists</li>
-              <li>Premium research reports</li>
-              <li>AI macro alerts &amp; chat</li>
-              <li>Priority analyst access</li>
-            </ul>
-            <button class="btn full">Upgrade now</button>
-          </div>
-          <div class="plan">
-            <h3>Enterprise</h3>
-            <p class="price">Custom <span>/ desk</span></p>
-            <ul>
-              <li>Dedicated research coverage</li>
-              <li>Data warehouse delivery</li>
-              <li>Custom alerts &amp; dashboards</li>
-              <li>24/7 phone support</li>
-            </ul>
-            <button class="btn ghost full">Contact sales</button>
-          </div>
-        </div>
-      </section>
-
-      <section id="faq" class="section section-muted">
-        <div class="section-title">
-          <h2>Premium feature highlights</h2>
-          <p>Built to match the depth of goldstockdata.com with a focus on clarity and speed.</p>
-        </div>
-        <div class="grid two">
-          <div class="faq-card">
-            <h4>Can I backtest strategies?</h4>
-            <p>
-              Yes. Premium includes 15 years of historical pricing, supply/demand balances, and
-              miner financials for backtesting.
-            </p>
-          </div>
-          <div class="faq-card">
-            <h4>How fast is the data?</h4>
-            <p>
-              Premium delivers sub-minute updates for metals, futures, and ETF flows with streaming
-              alerts.
-            </p>
-          </div>
-          <div class="faq-card">
-            <h4>Do you offer an API?</h4>
-            <p>
-              API access is available for Premium and Enterprise plans, including WebSocket
-              streaming.
-            </p>
-          </div>
-          <div class="faq-card">
-            <h4>Is the research proprietary?</h4>
-            <p>
-              Every Premium report is written by our analysts and augmented with AI, built
-              exclusively for members.
-            </p>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="footer">
       <div>
-        <strong>GoldStockData</strong>
-        <p>Premium intelligence for precious metals markets.</p>
+        <strong>Commodities Toolkit</strong>
+        <p>Private research workspace for fundamentals and valuation.</p>
       </div>
       <div class="footer-links">
-        <a href="#">API Docs</a>
-        <a href="#">Research</a>
-        <a href="#">Security</a>
-        <a href="#">Contact</a>
+        <span>Local data</span>
+        <span>Private use</span>
+        <span>No accounts</span>
       </div>
-      <button class="btn ghost">Request demo</button>
     </footer>
 
     <script src="app.js"></script>

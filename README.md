@@ -39,6 +39,14 @@ If you still see a 404, double-check you started the server from the repo root a
 py -m http.server 8000 --directory "C:\\Users\\User\\valuation-master\\public"
 ```
 
+If the `--directory` flag keeps giving 404s, switch into the `public` folder first and start the
+server there:
+
+```powershell
+cd C:\Users\User\valuation-master\public
+py -m http.server 8000
+```
+
 ### Option 2: Node.js (any OS)
 
 If you have Node.js installed, you can serve the site with:

@@ -14,6 +14,10 @@ const liveStatus = document.getElementById("liveStatus");
 const fundamentalsStatus = document.getElementById("fundamentalsStatus");
 const refreshButton = document.getElementById("refreshData");
 const autoRefreshToggle = document.getElementById("autoRefresh");
+const silverModelForm = document.getElementById("silverModelForm");
+const silverReset = document.getElementById("silverReset");
+const silverAiscSample = document.getElementById("silverAiscSample");
+const silverMarginTable = document.getElementById("silverMarginTable");
 
 const metrics = {
   standard: [
@@ -363,6 +367,180 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+const defaultAiscSample = [
+  18.98, 21.11, 23.88, 13.06, 12.03, 19.7, 24.75, 26.01, 24.3, 20.57, 24.15,
+  28.13,
+];
+
+const parseAiscSample = (value) => {
+  const parsed = value
+    .split(/[\n,]+/)
+    .map((entry) => Number(entry.trim()))
+    .filter((entry) => Number.isFinite(entry) && entry > 0);
+  return parsed.length ? parsed : [...defaultAiscSample];
+};
+
+const quantile = (arr, q) => {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sorted[base + 1] !== undefined) {
+    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  }
+  return sorted[base];
+};
+
+const randTriangular = (min, mode, max) => {
+  const u = Math.random();
+  const c = (mode - min) / (max - min);
+  if (u < c) {
+    return min + Math.sqrt(u * (max - min) * (mode - min));
+  }
+  return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
+};
+
+const randUniform = (min, max) => min + Math.random() * (max - min);
+
+const normInv = (p) => {
+  const a1 = -39.6968302866538;
+  const a2 = 220.946098424521;
+  const a3 = -275.928510446969;
+  const a4 = 138.357751867269;
+  const a5 = -30.6647980661472;
+  const a6 = 2.50662827745924;
+  const b1 = -54.4760987982241;
+  const b2 = 161.585836858041;
+  const b3 = -155.698979859887;
+  const b4 = 66.8013118877197;
+  const b5 = -13.2806815528857;
+  const c1 = -7.78489400243029e-3;
+  const c2 = -0.322396458041136;
+  const c3 = -2.40075827716184;
+  const c4 = -2.54973253934373;
+  const c5 = 4.37466414146497;
+  const c6 = 2.93816398269878;
+  const d1 = 7.78469570904146e-3;
+  const d2 = 0.32246712907004;
+  const d3 = 2.445134137143;
+  const d4 = 3.75440866190742;
+  const pLow = 0.02425;
+  const pHigh = 1 - pLow;
+  let q;
+  if (p < pLow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (
+      (((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
+      ((((d1 * q + d2) * q + d3) * q + d4) * q + 1)
+    );
+  }
+  if (p <= pHigh) {
+    q = p - 0.5;
+    const r = q * q;
+    return (
+      (((((a1 * r + a2) * r + a3) * r + a4) * r + a5) * r + a6) * q /
+      (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1)
+    );
+  }
+  q = Math.sqrt(-2 * Math.log(1 - p));
+  return (
+    -(((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
+    ((((d1 * q + d2) * q + d3) * q + d4) * q + 1)
+  );
+};
+
+const formatDollars = (value) => {
+  if (!Number.isFinite(value)) {
+    return "$--";
+  }
+  return formatCurrency(value);
+};
+
+const updateMarginTable = (sample) => {
+  if (!silverMarginTable) {
+    return;
+  }
+  const p10 = quantile(sample, 0.1);
+  const median = quantile(sample, 0.5);
+  const p90 = quantile(sample, 0.9);
+  const priceDecks = [55, 70, 90, 110];
+  silverMarginTable.innerHTML = "";
+  priceDecks.forEach((price) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${formatDollars(price)}</td>
+      <td>${formatDollars(price - p10)}</td>
+      <td>${formatDollars(price - median)}</td>
+      <td>${formatDollars(price - p90)}</td>
+    `;
+    silverMarginTable.appendChild(row);
+  });
+};
+
+const runSilverModel = () => {
+  const sample = parseAiscSample(silverAiscSample?.value || "");
+  const qMin = Number(document.getElementById("silverQuantileMin").value);
+  const qMax = Number(document.getElementById("silverQuantileMax").value);
+  const settleMin = Number(document.getElementById("silverSettleMin").value);
+  const settleMode = Number(document.getElementById("silverSettleMode").value);
+  const settleMax = Number(document.getElementById("silverSettleMax").value);
+  const driftMin = Number(document.getElementById("silverDriftMin").value) / 100;
+  const driftMax = Number(document.getElementById("silverDriftMax").value) / 100;
+  const multMin = Number(document.getElementById("silverMultMin").value);
+  const multMode = Number(document.getElementById("silverMultMode").value);
+  const multMax = Number(document.getElementById("silverMultMax").value);
+  const squeezeFast = Number(document.getElementById("silverSqueezeFast").value);
+  const squeezeSlow = Number(document.getElementById("silverSqueezeSlow").value);
+  const identityProb = Number(document.getElementById("silverIdentityProb").value);
+  const median = quantile(sample, 0.5);
+  const p90 = quantile(sample, 0.9);
+  const mu = Math.log(median);
+  const sigma = (Math.log(p90) - mu) / normInv(0.9);
+  const simulations = 5000;
+  const prices = [];
+  const basePrices = [];
+
+  for (let i = 0; i < simulations; i += 1) {
+    const quant = randUniform(qMin, qMax);
+    const costBase = Math.exp(mu + sigma * normInv(quant));
+    const settleTime = randTriangular(settleMin, settleMode, settleMax);
+    const drift = randUniform(driftMin, driftMax);
+    const cost = costBase * Math.exp(drift * settleTime);
+    const multiplierBase = randTriangular(multMin, multMode, multMax);
+    let multiplier = multiplierBase;
+    const squeezeProb = settleTime <= 3 ? squeezeFast : squeezeSlow;
+    const draw = Math.random();
+    if (draw < squeezeProb) {
+      multiplier *= randUniform(1.3, 1.8);
+    } else if (draw < squeezeProb + identityProb) {
+      multiplier *= randUniform(2.0, 4.0);
+    }
+    basePrices.push(cost * multiplierBase);
+    prices.push(cost * multiplier);
+  }
+
+  const medianPrice = quantile(prices, 0.5);
+  const meanPrice = prices.reduce((sum, value) => sum + value, 0) / prices.length;
+  const p05 = quantile(prices, 0.05);
+  const p95 = quantile(prices, 0.95);
+  const p99 = quantile(prices, 0.99);
+  const baseMedian = quantile(basePrices, 0.5);
+
+  document.getElementById("silverMedian").textContent = formatDollars(medianPrice);
+  document.getElementById("silverMean").textContent = formatDollars(meanPrice);
+  document.getElementById("silverBand").textContent = `${formatDollars(p05)} – ${formatDollars(p95)}`;
+  document.getElementById("silverP99").textContent = formatDollars(p99);
+  document.getElementById("silverBaseMedian").textContent = formatDollars(baseMedian);
+  updateMarginTable(sample);
+};
+
+const resetSilverModel = () => {
+  if (silverAiscSample) {
+    silverAiscSample.value = defaultAiscSample.join("\n");
+  }
+  runSilverModel();
+};
+
 const updateCalculator = () => {
   const tier = document.getElementById("calcTier").value;
   const price = Number(document.getElementById("calcPrice").value);
@@ -547,11 +725,22 @@ if (valuationForm) {
   });
 }
 
+if (silverModelForm) {
+  silverModelForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    runSilverModel();
+  });
+}
+
 if (resetCalc) {
   resetCalc.addEventListener("click", () => {
     valuationForm.reset();
     updateCalculator();
   });
+}
+
+if (silverReset) {
+  silverReset.addEventListener("click", resetSilverModel);
 }
 
 if (saveCalc) {
@@ -578,6 +767,7 @@ if (savedList) {
 renderMetrics("premium");
 renderFundamentals();
 updateCalculator();
+resetSilverModel();
 loadSavedResults();
 
 let refreshTimer = null;

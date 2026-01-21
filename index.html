@@ -25,6 +25,7 @@
         <div class="nav-links">
           <a href="#overview">Overview</a>
           <a href="#fundamentals">Fundamentals</a>
+          <a href="#silver-model">Silver Model</a>
           <a href="#calculator">Valuation</a>
         </div>
       </nav>
@@ -180,6 +181,127 @@
               </tr>
             </thead>
             <tbody id="fundamentalTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="silver-model" class="section section-muted">
+        <div class="section-title">
+          <h2>Silver intrinsic model (AISC + scarcity)</h2>
+          <p>
+            Model silver’s intrinsic value using an expanded AISC sample, a marginal-cost tail
+            anchor, settlement timing drift, and scarcity multipliers. Adjust the inputs to reflect
+            your macro assumptions and recalc the distribution.
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="silverModelForm" class="calculator-form">
+            <div class="form-grid">
+              <label class="span-two">
+                AISC sample (one value per line, $/oz)
+                <textarea id="silverAiscSample" rows="6"></textarea>
+              </label>
+              <label>
+                Marginal quantile min
+                <input type="number" step="0.01" id="silverQuantileMin" value="0.85" required />
+              </label>
+              <label>
+                Marginal quantile max
+                <input type="number" step="0.01" id="silverQuantileMax" value="0.95" required />
+              </label>
+              <label>
+                Settlement time min (months)
+                <input type="number" step="0.1" id="silverSettleMin" value="2" required />
+              </label>
+              <label>
+                Settlement time mode (months)
+                <input type="number" step="0.1" id="silverSettleMode" value="4" required />
+              </label>
+              <label>
+                Settlement time max (months)
+                <input type="number" step="0.1" id="silverSettleMax" value="8" required />
+              </label>
+              <label>
+                Cost drift min (%/month)
+                <input type="number" step="0.1" id="silverDriftMin" value="0" required />
+              </label>
+              <label>
+                Cost drift max (%/month)
+                <input type="number" step="0.1" id="silverDriftMax" value="2" required />
+              </label>
+              <label>
+                Scarcity multiplier min
+                <input type="number" step="0.1" id="silverMultMin" value="2.5" required />
+              </label>
+              <label>
+                Scarcity multiplier mode
+                <input type="number" step="0.1" id="silverMultMode" value="3.2" required />
+              </label>
+              <label>
+                Scarcity multiplier max
+                <input type="number" step="0.1" id="silverMultMax" value="4.2" required />
+              </label>
+              <label>
+                Squeeze prob (fast, ≤3 mo)
+                <input type="number" step="0.01" id="silverSqueezeFast" value="0.05" required />
+              </label>
+              <label>
+                Squeeze prob (slow, >3 mo)
+                <input type="number" step="0.01" id="silverSqueezeSlow" value="0.02" required />
+              </label>
+              <label>
+                Identity shift prob
+                <input type="number" step="0.01" id="silverIdentityProb" value="0.01" required />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Run model</button>
+              <button class="btn ghost" type="button" id="silverReset">Reset</button>
+            </div>
+          </form>
+          <div class="calc-results" id="silverResults">
+            <div class="calc-card">
+              <span>Median intrinsic</span>
+              <strong id="silverMedian">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>Mean intrinsic</span>
+              <strong id="silverMean">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>5–95% band</span>
+              <strong id="silverBand">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>99th percentile</span>
+              <strong id="silverP99">$--</strong>
+              <em>Overshoot tail</em>
+            </div>
+            <div class="calc-card">
+              <span>Base median (no tails)</span>
+              <strong id="silverBaseMedian">$--</strong>
+              <em>Scarcity only</em>
+            </div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Margin sensitivity (price vs AISC)</h3>
+            <span class="table-note">Based on sample p10 / median / p90 AISC</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Silver price</th>
+                <th>Margin @ p10</th>
+                <th>Margin @ median</th>
+                <th>Margin @ p90</th>
+              </tr>
+            </thead>
+            <tbody id="silverMarginTable"></tbody>
           </table>
         </div>
       </section>

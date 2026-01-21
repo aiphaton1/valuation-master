@@ -216,19 +216,19 @@ const updateCalculator = () => {
   const shares = Number(document.getElementById("calcShares").value) * 1_000_000;
   const debt = Number(document.getElementById("calcDebt").value) * 1_000_000;
   const currentPrice = Number(document.getElementById("calcCurrentPrice").value);
-  const fcfMargin = Number(document.getElementById("calcFcfMargin").value) / 100;
-  const fcfMultipleInput = Number(document.getElementById("calcFcfMultiple").value);
 
   const margin = price - cost;
   const annualCashflow = margin * production;
   const annualRevenue = price * production;
-  const annualFcf = annualRevenue * fcfMargin;
   const tierDefaults = {
-    junior: 6,
+    junior: 5,
     mid: 8,
-    major: 10,
+    major: 12,
   };
-  const fcfMultiple = fcfMultipleInput > 0 ? fcfMultipleInput : tierDefaults[tier] || 8;
+  const fcfMultiple = tierDefaults[tier] || 8;
+  const marginRatio = annualRevenue > 0 ? Math.max(margin / price, 0) : 0;
+  const fcfMargin = Math.min(marginRatio * 0.75, 0.45);
+  const annualFcf = annualRevenue * fcfMargin;
   const evFromMultiple = annualFcf * fcfMultiple;
   let npv = 0;
   if (discountRate > 0) {

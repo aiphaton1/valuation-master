@@ -24,8 +24,10 @@
         </div>
         <div class="nav-links">
           <a href="#solutions">Solutions</a>
-          <a href="#pricing">Pricing</a>
           <a href="#data">Data</a>
+          <a href="#fundamentals">Fundamentals</a>
+          <a href="#calculator">Valuation</a>
+          <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
           <button class="btn ghost">Log in</button>
           <button class="btn">Start free trial</button>
@@ -222,6 +224,117 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section id="fundamentals" class="section">
+        <div class="section-title split">
+          <div>
+            <h2>Fundamental metrics dashboard</h2>
+            <p>
+              Track real-time fundamentals across commodities and global indexes with sortable
+              scorecards, catalysts, and valuation signals.
+            </p>
+          </div>
+          <div class="filters">
+            <div class="filter-buttons">
+              <button class="filter-btn active" data-category="all">All</button>
+              <button class="filter-btn" data-category="commodity">Commodities</button>
+              <button class="filter-btn" data-category="index">Indexes</button>
+            </div>
+            <input
+              id="fundamentalSearch"
+              type="search"
+              placeholder="Search assets (gold, oil, S&P 500...)"
+              aria-label="Search assets"
+            />
+          </div>
+        </div>
+        <div class="grid three" id="fundamentalCards"></div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Macro fundamentals snapshot</h3>
+            <button class="btn ghost small">Export CSV</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Asset</th>
+                <th>Last</th>
+                <th>1D</th>
+                <th>1W</th>
+                <th>Trend</th>
+                <th>Fundamental driver</th>
+              </tr>
+            </thead>
+            <tbody id="fundamentalTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="calculator" class="section section-muted">
+        <div class="section-title">
+          <h2>Valuation calculator</h2>
+          <p>
+            Build your own intrinsic value model for miners or commodity producers using price,
+            cost, and volume assumptions. All calculations run locally in your browser.
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="valuationForm" class="calculator-form">
+            <div class="form-grid">
+              <label>
+                Commodity price ($/oz or $/unit)
+                <input type="number" step="0.01" id="calcPrice" value="2412" required />
+              </label>
+              <label>
+                Annual production (oz or units)
+                <input type="number" step="1" id="calcProduction" value="950000" required />
+              </label>
+              <label>
+                AISC / cash cost ($/unit)
+                <input type="number" step="0.01" id="calcCost" value="1140" required />
+              </label>
+              <label>
+                Mine life (years)
+                <input type="number" step="1" id="calcMineLife" value="12" required />
+              </label>
+              <label>
+                Discount rate (%)
+                <input type="number" step="0.1" id="calcDiscount" value="9" required />
+              </label>
+              <label>
+                Shares outstanding (millions)
+                <input type="number" step="1" id="calcShares" value="520" required />
+              </label>
+              <label>
+                Net debt (millions)
+                <input type="number" step="1" id="calcDebt" value="450" required />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Calculate value</button>
+              <button class="btn ghost" type="button" id="resetCalc">Reset</button>
+            </div>
+          </form>
+          <div class="calc-results" id="calcResults">
+            <div class="calc-card">
+              <span>Annual cash flow</span>
+              <strong id="resultCashflow">$1.2B</strong>
+              <em>Before tax &amp; growth</em>
+            </div>
+            <div class="calc-card">
+              <span>NPV (after debt)</span>
+              <strong id="resultNpv">$8.6B</strong>
+              <em>Discounted over mine life</em>
+            </div>
+            <div class="calc-card">
+              <span>Intrinsic value / share</span>
+              <strong id="resultPerShare">$16.54</strong>
+              <em>Based on inputs</em>
+            </div>
+          </div>
         </div>
       </section>
 

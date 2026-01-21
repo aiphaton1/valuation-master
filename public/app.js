@@ -6,6 +6,10 @@ const fundamentalCards = document.getElementById("fundamentalCards");
 const fundamentalTableBody = document.getElementById("fundamentalTableBody");
 const valuationForm = document.getElementById("valuationForm");
 const resetCalc = document.getElementById("resetCalc");
+const liveStatus = document.getElementById("liveStatus");
+const fundamentalsStatus = document.getElementById("fundamentalsStatus");
+const refreshButton = document.getElementById("refreshData");
+const autoRefreshToggle = document.getElementById("autoRefresh");
 
 const metrics = {
   standard: [
@@ -123,6 +127,106 @@ const fundamentals = [
     highlights: ["Credit easing", "Commodity beta", "USD softness"],
   },
 ];
+
+const formatChange = (value) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+};
+
+const parseStooqCsv = (text) => {
+  const lines = text.trim().split("\n");
+  if (lines.length < 2) {
+    return null;
+  }
+  const headers = lines[0].split(",");
+  const values = lines[1].split(",");
+  const row = {};
+  headers.forEach((header, index) => {
+    row[header.toLowerCase()] = values[index];
+  });
+  return row;
+};
+
+const fetchStooqQuote = async (symbol) => {
+  const endpoint = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
+  const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`;
+  const response = await fetch(proxy);
+  const text = await response.text();
+  return parseStooqCsv(text);
+};
+
+const updateLiveData = async () => {
+  const stooqMap = {
+    XAU: "xauusd",
+    XAG: "xagusd",
+    CL: "cl",
+    HG: "hg",
+    NG: "ng",
+    SPX: "spx",
+    NDX: "ndx",
+    DXY: "usdx",
+    EEM: "eem",
+  };
+  const symbols = Object.values(stooqMap);
+  const results = await Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol)));
+  const quoteBySymbol = {};
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled" && result.value) {
+      quoteBySymbol[symbols[index]] = result.value;
+    }
+  });
+
+  fundamentals.forEach((item) => {
+    const stooqSymbol = stooqMap[item.symbol];
+    const quote = quoteBySymbol[stooqSymbol];
+    if (!quote) {
+      return;
+    }
+    const close = Number(quote.close);
+    const open = Number(quote.open);
+    const dayChange = open ? ((close - open) / open) * 100 : 0;
+    item.price = Number.isFinite(close) ? close.toFixed(2) : item.price;
+    item.day = formatChange(dayChange);
+    item.trend = dayChange >= 0 ? "up" : "down";
+  });
+
+  metrics.premium = metrics.premium.map((metric) => {
+    const lookup = {
+      "Spot Gold": "XAU",
+      "Comex Volume": "CL",
+      "ETF Flows": "EEM",
+      "Sentiment Score": "SPX",
+    };
+    const symbol = lookup[metric.label];
+    const stooqSymbol = stooqMap[symbol];
+    const quote = quoteBySymbol[stooqSymbol];
+    if (!quote) {
+      return metric;
+    }
+    const close = Number(quote.close);
+    const open = Number(quote.open);
+    const dayChange = open ? ((close - open) / open) * 100 : 0;
+    return {
+      ...metric,
+      value: Number.isFinite(close) ? close.toFixed(2) : metric.value,
+      delta: formatChange(dayChange),
+      trend: dayChange >= 0 ? "up" : "down",
+    };
+  });
+
+  const now = new Date();
+  if (liveStatus) {
+    liveStatus.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+  }
+  if (fundamentalsStatus) {
+    fundamentalsStatus.textContent = `Updated at ${now.toLocaleTimeString()}`;
+  }
+  renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
+  renderFundamentals();
+};
 
 const renderMetrics = (mode) => {
   const data = metrics[mode];
@@ -309,3 +413,31 @@ if (resetCalc) {
 renderMetrics("premium");
 renderFundamentals();
 updateCalculator();
+
+let refreshTimer = null;
+const startAutoRefresh = () => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
+  refreshTimer = setInterval(updateLiveData, 300000);
+};
+
+if (refreshButton) {
+  refreshButton.addEventListener("click", () => {
+    updateLiveData();
+  });
+}
+
+if (autoRefreshToggle) {
+  autoRefreshToggle.addEventListener("change", () => {
+    if (autoRefreshToggle.checked) {
+      startAutoRefresh();
+    } else if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  });
+}
+
+updateLiveData();
+startAutoRefresh();

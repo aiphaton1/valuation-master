@@ -69,6 +69,19 @@
             <button class="toggle-btn active" data-mode="premium">Premium</button>
           </div>
         </div>
+        <div class="live-status">
+          <div>
+            <strong>Live data</strong>
+            <span id="liveStatus">Last updated: --</span>
+          </div>
+          <div class="live-controls">
+            <label class="live-toggle">
+              <input type="checkbox" id="autoRefresh" checked />
+              Auto refresh (5 min)
+            </label>
+            <button class="btn ghost small" id="refreshData">Refresh now</button>
+          </div>
+        </div>
         <div class="grid four" id="metricGrid"></div>
         <div class="table-card">
           <div class="table-header">
@@ -140,6 +153,12 @@
               placeholder="Search assets (gold, oil, S&P 500...)"
               aria-label="Search assets"
             />
+          </div>
+        </div>
+        <div class="live-status compact">
+          <div>
+            <strong>Fundamentals feed</strong>
+            <span id="fundamentalsStatus">Awaiting live update</span>
           </div>
         </div>
         <div class="grid three" id="fundamentalCards"></div>

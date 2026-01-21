@@ -20,6 +20,10 @@ const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
 const silverDistribution = document.getElementById("silverDistribution");
 const silverTooltip = document.getElementById("silverTooltip");
+const kwhForm = document.getElementById("kwhForm");
+const kwhReset = document.getElementById("kwhReset");
+const kwhWarnings = document.getElementById("kwhWarnings");
+const kwhPowerTable = document.getElementById("kwhPowerTable");
 
 let lastHistogram = null;
 
@@ -722,6 +726,152 @@ const updateCalculator = () => {
   document.getElementById("resultTierNext").textContent = `Potential: ${tierNext}`;
 };
 
+const formatNumber = (value, digits = 2) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return value.toFixed(digits);
+};
+
+const renderKwhWarnings = (messages) => {
+  if (!kwhWarnings) {
+    return;
+  }
+  const list = kwhWarnings.querySelector("ul");
+  if (!list) {
+    return;
+  }
+  list.innerHTML = "";
+  if (messages.length === 0) {
+    kwhWarnings.style.display = "none";
+    return;
+  }
+  kwhWarnings.style.display = "block";
+  messages.forEach((message) => {
+    const item = document.createElement("li");
+    item.textContent = message;
+    list.appendChild(item);
+  });
+};
+
+const resetKwhOutputs = () => {
+  const targets = [
+    "kwhOzPerT",
+    "kwhPayableOzPerT",
+    "kwhTPerOz",
+    "kwhPerOzMill",
+    "kwhPerOzTotal",
+    "kwhBand",
+  ];
+  targets.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = "--";
+    }
+  });
+  if (kwhPowerTable) {
+    kwhPowerTable.innerHTML = "";
+  }
+};
+
+const calculateKwh = () => {
+  const warnings = [];
+  const grade = Number(document.getElementById("kwhGrade").value);
+  const recoveryInput = document.getElementById("kwhRecovery").value;
+  const payableInput = document.getElementById("kwhPayable").value;
+  const millInput = document.getElementById("kwhMill").value;
+  const dieselInput = document.getElementById("kwhDiesel").value;
+  const powerLowInput = document.getElementById("kwhPowerLow").value;
+  const powerBaseInput = document.getElementById("kwhPowerBase").value;
+  const powerHighInput = document.getElementById("kwhPowerHigh").value;
+
+  if (!Number.isFinite(grade) || grade <= 0) {
+    resetKwhOutputs();
+    renderKwhWarnings(["Enter a silver grade to calculate kWh/oz."]);
+    return;
+  }
+
+  const recovery = recoveryInput ? Number(recoveryInput) : 0.85;
+  if (!recoveryInput) {
+    warnings.push("Recovery defaulted to 0.85.");
+  }
+  const payable = payableInput ? Number(payableInput) : 1.0;
+  if (!payableInput) {
+    warnings.push("Payable defaulted to 1.0.");
+  }
+  const millKwh = millInput ? Number(millInput) : 25;
+  if (!millInput) {
+    warnings.push("Mill power defaulted to 25 kWh/t.");
+  }
+  const dieselL = dieselInput ? Number(dieselInput) : 0;
+  if (!dieselInput) {
+    warnings.push("Diesel defaulted to 0 L/t.");
+  }
+  const powerLow = powerLowInput ? Number(powerLowInput) : 80;
+  if (!powerLowInput) {
+    warnings.push("Low power price defaulted to $80/MWh.");
+  }
+  const powerBase = powerBaseInput ? Number(powerBaseInput) : 150;
+  if (!powerBaseInput) {
+    warnings.push("Base power price defaulted to $150/MWh.");
+  }
+  const powerHigh = powerHighInput ? Number(powerHighInput) : 250;
+  if (!powerHighInput) {
+    warnings.push("High power price defaulted to $250/MWh.");
+  }
+
+  const ozPerT = grade / 31.1035;
+  const payableOzPerT = ozPerT * recovery * payable;
+  if (payableOzPerT <= 0) {
+    resetKwhOutputs();
+    renderKwhWarnings(["Recovery × payable must be greater than 0."]);
+    return;
+  }
+  const tPerPayableOz = 1 / payableOzPerT;
+  const kwhPerOzMill = millKwh * tPerPayableOz;
+  const dieselKwhPerT = dieselL * 10;
+  const kwhPerOzTotal = (millKwh + dieselKwhPerT) * tPerPayableOz;
+
+  let band = "Energy sensitive";
+  if (kwhPerOzTotal < 5) {
+    band = "Exceptional";
+  } else if (kwhPerOzTotal < 12) {
+    band = "Strong";
+  } else if (kwhPerOzTotal < 25) {
+    band = "Energy sensitive";
+  } else {
+    band = "Pain";
+  }
+
+  document.getElementById("kwhOzPerT").textContent = formatNumber(ozPerT, 3);
+  document.getElementById("kwhPayableOzPerT").textContent = formatNumber(payableOzPerT, 3);
+  document.getElementById("kwhTPerOz").textContent = formatNumber(tPerPayableOz, 2);
+  document.getElementById("kwhPerOzMill").textContent = formatNumber(kwhPerOzMill, 1);
+  document.getElementById("kwhPerOzTotal").textContent = formatNumber(kwhPerOzTotal, 1);
+  document.getElementById("kwhBand").textContent = band;
+
+  if (kwhPowerTable) {
+    kwhPowerTable.innerHTML = "";
+    const scenarios = [
+      { label: "Low", price: powerLow },
+      { label: "Base", price: powerBase },
+      { label: "High", price: powerHigh },
+    ];
+    scenarios.forEach((scenario) => {
+      const costPerOz = kwhPerOzMill * (scenario.price / 1000);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${scenario.label}</td>
+        <td>${formatCurrency(scenario.price)}</td>
+        <td>${formatCurrency(costPerOz)}</td>
+      `;
+      kwhPowerTable.appendChild(row);
+    });
+  }
+
+  renderKwhWarnings(warnings);
+};
+
 const readCalcInputs = () => {
   return {
     tier: document.getElementById("calcTier").value,
@@ -887,6 +1037,21 @@ if (resetCalc) {
   });
 }
 
+if (kwhForm) {
+  kwhForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    calculateKwh();
+  });
+}
+
+if (kwhReset) {
+  kwhReset.addEventListener("click", () => {
+    kwhForm.reset();
+    resetKwhOutputs();
+    renderKwhWarnings([]);
+  });
+}
+
 if (silverReset) {
   silverReset.addEventListener("click", resetSilverModel);
 }
@@ -916,6 +1081,8 @@ renderMetrics("premium");
 renderFundamentals();
 updateCalculator();
 resetSilverModel();
+resetKwhOutputs();
+renderKwhWarnings([]);
 loadSavedResults();
 
 let refreshTimer = null;

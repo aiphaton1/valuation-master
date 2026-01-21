@@ -516,6 +516,20 @@ a {
   align-items: center;
 }
 
+.warning-card {
+  margin-top: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  padding: 16px 18px;
+  background: rgba(5, 11, 5, 0.8);
+  color: var(--muted);
+}
+
+.warning-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;

@@ -26,6 +26,7 @@
           <a href="#overview">Overview</a>
           <a href="#fundamentals">Fundamentals</a>
           <a href="#silver-model">Silver Model</a>
+          <a href="#kwh-oz">kWh/oz</a>
           <a href="#calculator">Valuation</a>
         </div>
       </nav>
@@ -338,6 +339,110 @@
             </thead>
             <tbody id="silverMarginTable"></tbody>
           </table>
+        </div>
+      </section>
+
+      <section id="kwh-oz" class="section">
+        <div class="section-title">
+          <h2>kWh/oz efficiency</h2>
+          <p>
+            Translate grade into energy intensity per payable ounce. Add recovery, payable, mill
+            power, and diesel inputs when available to refine the estimate.
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="kwhForm" class="calculator-form">
+            <div class="form-grid">
+              <label>
+                Silver grade (g/t Ag) *
+                <input type="number" step="0.01" id="kwhGrade" required />
+              </label>
+              <label>
+                Recovery (fraction)
+                <input type="number" step="0.01" id="kwhRecovery" placeholder="Default 0.85" />
+              </label>
+              <label>
+                Payable (fraction)
+                <input type="number" step="0.01" id="kwhPayable" placeholder="Default 1.0" />
+              </label>
+              <label>
+                Mill power (kWh/t)
+                <input type="number" step="0.1" id="kwhMill" placeholder="Default 25" />
+              </label>
+              <label>
+                Diesel (L/t mined)
+                <input type="number" step="0.1" id="kwhDiesel" placeholder="Default 0" />
+              </label>
+              <label>
+                Power price low ($/MWh)
+                <input type="number" step="1" id="kwhPowerLow" placeholder="Default 80" />
+              </label>
+              <label>
+                Power price base ($/MWh)
+                <input type="number" step="1" id="kwhPowerBase" placeholder="Default 150" />
+              </label>
+              <label>
+                Power price high ($/MWh)
+                <input type="number" step="1" id="kwhPowerHigh" placeholder="Default 250" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Calculate kWh/oz</button>
+              <button class="btn ghost" type="button" id="kwhReset">Reset</button>
+            </div>
+          </form>
+          <div class="calc-results" id="kwhResults">
+            <div class="calc-card">
+              <span>oz per tonne</span>
+              <strong id="kwhOzPerT">--</strong>
+              <em>Grade conversion</em>
+            </div>
+            <div class="calc-card">
+              <span>Payable oz per tonne</span>
+              <strong id="kwhPayableOzPerT">--</strong>
+              <em>Recovery × payable</em>
+            </div>
+            <div class="calc-card">
+              <span>t per payable oz</span>
+              <strong id="kwhTPerOz">--</strong>
+              <em>Ore moved per oz</em>
+            </div>
+            <div class="calc-card">
+              <span>kWh/oz (mill)</span>
+              <strong id="kwhPerOzMill">--</strong>
+              <em>Mill-only energy</em>
+            </div>
+            <div class="calc-card">
+              <span>kWh/oz (total)</span>
+              <strong id="kwhPerOzTotal">--</strong>
+              <em>Mill + diesel</em>
+            </div>
+            <div class="calc-card">
+              <span>Energy band</span>
+              <strong id="kwhBand">--</strong>
+              <em>&lt;5 exceptional, 5–12 strong, 12–25 sensitive, &gt;25 pain</em>
+            </div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Power cost per oz (mill-only)</h3>
+            <span class="table-note">Calculated from mill kWh/oz × power price.</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Power price ($/MWh)</th>
+                <th>Cost per oz</th>
+              </tr>
+            </thead>
+            <tbody id="kwhPowerTable"></tbody>
+          </table>
+        </div>
+        <div class="warning-card" id="kwhWarnings">
+          <strong>Defaults applied</strong>
+          <ul></ul>
         </div>
       </section>
 

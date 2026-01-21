@@ -9,6 +9,7 @@ const resetCalc = document.getElementById("resetCalc");
 const saveCalc = document.getElementById("saveCalc");
 const savedList = document.getElementById("savedList");
 const clearSaved = document.getElementById("clearSaved");
+const saveNameInput = document.getElementById("calcSaveName");
 const liveStatus = document.getElementById("liveStatus");
 const fundamentalsStatus = document.getElementById("fundamentalsStatus");
 const refreshButton = document.getElementById("refreshData");
@@ -174,13 +175,17 @@ const updateLiveData = async () => {
     EEM: "eem",
   };
   const symbols = Object.values(stooqMap);
-  const results = await Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol)));
-  const quoteBySymbol = {};
-  results.forEach((result, index) => {
-    if (result.status === "fulfilled" && result.value) {
-      quoteBySymbol[symbols[index]] = result.value;
-    }
-  });
+  let quoteBySymbol = {};
+  try {
+    const results = await Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol)));
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled" && result.value) {
+        quoteBySymbol[symbols[index]] = result.value;
+      }
+    });
+  } catch (error) {
+    quoteBySymbol = {};
+  }
 
   fundamentals.forEach((item) => {
     const stooqSymbol = stooqMap[item.symbol];
@@ -221,11 +226,16 @@ const updateLiveData = async () => {
   });
 
   const now = new Date();
+  const success = Object.keys(quoteBySymbol).length > 0;
   if (liveStatus) {
-    liveStatus.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+    liveStatus.textContent = success
+      ? `Last updated: ${now.toLocaleTimeString()}`
+      : "Live data unavailable (check connection)";
   }
   if (fundamentalsStatus) {
-    fundamentalsStatus.textContent = `Updated at ${now.toLocaleTimeString()}`;
+    fundamentalsStatus.textContent = success
+      ? `Updated at ${now.toLocaleTimeString()}`
+      : "Live feed unavailable";
   }
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
   renderFundamentals();
@@ -434,7 +444,8 @@ const saveCalculation = () => {
   const inputs = readCalcInputs();
   const outputs = readCalcOutputs();
   const saved = JSON.parse(localStorage.getItem("savedCalculations") || "[]");
-  const label = `${inputs.tier.toUpperCase()} • ${outputs.perShare}`;
+  const customName = saveNameInput ? saveNameInput.value.trim() : "";
+  const label = customName || `${inputs.tier.toUpperCase()} • ${outputs.perShare}`;
   const summary = `Upside ${outputs.upsidePercent} | Multiple ${outputs.upsideMultiple}`;
   saved.unshift({
     createdAt: new Date().toISOString(),
@@ -444,6 +455,9 @@ const saveCalculation = () => {
     outputs,
   });
   localStorage.setItem("savedCalculations", JSON.stringify(saved.slice(0, 10)));
+  if (saveNameInput) {
+    saveNameInput.value = "";
+  }
   loadSavedResults();
 };
 

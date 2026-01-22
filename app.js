@@ -509,8 +509,8 @@ const drawDistribution = (values, spotPrice) => {
   ctx.fillStyle = "rgba(5, 11, 5, 0.6)";
   ctx.fillRect(0, 0, width, height);
 
-  const min = quantile(values, 0.02);
-  const max = quantile(values, 0.98);
+  const min = quantile(values, 0.01);
+  const max = quantile(values, 0.99);
   const bins = 28;
   const step = (max - min) / bins || 1;
   const counts = new Array(bins).fill(0);

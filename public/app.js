@@ -808,7 +808,7 @@ const renderKwhOzSimpleTab = ({
   const results = calcKwhPerOzSimple(inputs);
   return {
     description:
-      "Translate grade into energy intensity per payable ounce. Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+.",
+      "Translate grade into energy intensity per payable ounce. Add recovery, payable, mill power, and diesel inputs when available to refine the estimate. Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+.",
     warnings,
     inputs,
     results,

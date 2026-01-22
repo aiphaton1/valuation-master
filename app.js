@@ -736,6 +736,85 @@ const formatNumber = (value, digits = 2) => {
   return value.toFixed(digits);
 };
 
+const calcKwhPerOzSimple = ({
+  gradeGpt,
+  recovery = 0.85,
+  electricityKwhPerT = 25.0,
+  powerPriceLow = 80.0,
+  powerPriceBase = 150.0,
+  powerPriceHigh = 250.0,
+}) => {
+  if (!(gradeGpt > 0)) {
+    throw new Error("grade_gpt must be > 0");
+  }
+  if (!(recovery > 0 && recovery <= 1)) {
+    throw new Error("recovery must be between 0 and 1");
+  }
+  if (!(electricityKwhPerT > 0)) {
+    throw new Error("electricity_kwh_per_t must be > 0");
+  }
+  const ozPerT = gradeGpt / 31.1035;
+  const recoveredOzPerT = ozPerT * recovery;
+  if (recoveredOzPerT <= 0) {
+    throw new Error("recovery must be > 0");
+  }
+  const tPerRecoveredOz = 1 / recoveredOzPerT;
+  const kwhPerRecoveredOz = electricityKwhPerT * tPerRecoveredOz;
+  let band = "Thermodynamic pain";
+  if (kwhPerRecoveredOz < 5) {
+    band = "Exceptional";
+  } else if (kwhPerRecoveredOz < 12) {
+    band = "Strong";
+  } else if (kwhPerRecoveredOz < 25) {
+    band = "Energy sensitive";
+  }
+  const powerCost = (price) => kwhPerRecoveredOz * (price / 1000);
+  return {
+    ozPerT,
+    tPerRecoveredOz,
+    kwhPerRecoveredOz,
+    powerCosts: {
+      low: powerCost(powerPriceLow),
+      base: powerCost(powerPriceBase),
+      high: powerCost(powerPriceHigh),
+    },
+    band,
+  };
+};
+
+const renderKwhOzSimpleTab = ({
+  gradeGpt,
+  recovery,
+  electricityKwhPerT,
+  powerPriceLow,
+  powerPriceBase,
+  powerPriceHigh,
+} = {}) => {
+  const warnings = [];
+  const inputs = {
+    gradeGpt,
+    recovery: recovery ?? 0.85,
+    electricityKwhPerT: electricityKwhPerT ?? 25.0,
+    powerPriceLow: powerPriceLow ?? 80.0,
+    powerPriceBase: powerPriceBase ?? 150.0,
+    powerPriceHigh: powerPriceHigh ?? 250.0,
+  };
+  if (recovery == null) {
+    warnings.push("Using default R=0.85.");
+  }
+  if (electricityKwhPerT == null) {
+    warnings.push("Using default E=25 kWh/t.");
+  }
+  const results = calcKwhPerOzSimple(inputs);
+  return {
+    description:
+      "Translate grade into energy intensity per payable ounce. Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+.",
+    warnings,
+    inputs,
+    results,
+  };
+};
+
 const renderKwhWarnings = (messages) => {
   if (!kwhWarnings) {
     return;

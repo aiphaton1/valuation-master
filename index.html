@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conflict Investment Master Application</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="app-header">
+      <nav class="nav">
+        <div class="brand">
+          <span class="brand-mark">CIM</span>
+          <div>
+            <div class="brand-name">Conflict Investment Master Application</div>
+            <div class="brand-tag">Private fundamentals &amp; valuation workspace</div>
+          </div>
+        </div>
+        <div class="nav-links">
+          <a href="#overview">Overview</a>
+          <a href="#fundamentals">Fundamentals</a>
+          <a href="#silver-model">Silver Model</a>
+          <a href="#kwh-oz">kWh/oz</a>
+          <a href="#calculator">Valuation</a>
+        </div>
+      </nav>
+      <section class="app-summary">
+        <div>
+          <h1>Fundamental metrics &amp; valuation tools for your own research.</h1>
+          <p class="lead">
+            A focused, private workspace for commodities and index fundamentals with a built-in
+            valuation calculator. Everything runs locally in your browser.
+          </p>
+        </div>
+        <div class="summary-cards">
+          <div class="summary-card">
+            <span>Coverage</span>
+            <strong>Commodities + Indexes</strong>
+            <em>Filter by category and search assets</em>
+          </div>
+          <div class="summary-card">
+            <span>Signals</span>
+            <strong>Macro drivers</strong>
+            <em>Key catalysts and trend readouts</em>
+          </div>
+          <div class="summary-card">
+            <span>Valuation</span>
+            <strong>DCF-style model</strong>
+            <em>Instant intrinsic value per share</em>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section id="overview" class="section section-muted">
+        <div class="section-title split">
+          <div>
+            <h2>Market overview</h2>
+            <p>Snapshot of key signals you track every day. Toggle between your saved views.</p>
+          </div>
+          <div class="toggle">
+            <span>View</span>
+            <button class="toggle-btn" data-mode="standard">Base</button>
+            <button class="toggle-btn active" data-mode="premium">Premium</button>
+          </div>
+        </div>
+        <div class="live-status">
+          <div>
+            <strong>Live data</strong>
+            <span id="liveStatus">Last updated: --</span>
+          </div>
+          <div class="live-controls">
+            <label class="live-toggle">
+              <input type="checkbox" id="autoRefresh" checked />
+              Auto refresh (5 min)
+            </label>
+            <button class="btn ghost small" id="refreshData">Refresh now</button>
+          </div>
+        </div>
+        <div class="grid four" id="metricGrid"></div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Priority watchlist</h3>
+            <button class="btn ghost small">Export CSV</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Theme</th>
+                <th>Signal</th>
+                <th>Momentum</th>
+                <th>Driver</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Gold miners</td>
+                <td>Risk-off hedge</td>
+                <td><span class="pill">Breakout</span></td>
+                <td class="up">+6.4%</td>
+                <td>Real yields lower, ETF inflows</td>
+              </tr>
+              <tr>
+                <td>WTI crude</td>
+                <td>Supply cuts</td>
+                <td><span class="pill warning">Neutral</span></td>
+                <td class="down">-0.7%</td>
+                <td>SPR refill slows, demand normalizing</td>
+              </tr>
+              <tr>
+                <td>Copper</td>
+                <td>Energy transition</td>
+                <td><span class="pill">Accumulation</span></td>
+                <td class="up">+3.1%</td>
+                <td>Grid capex, mine disruptions</td>
+              </tr>
+              <tr>
+                <td>S&amp;P 500</td>
+                <td>Risk-on</td>
+                <td><span class="pill">Rotation</span></td>
+                <td class="up">+2.2%</td>
+                <td>Earnings breadth improving</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="fundamentals" class="section">
+        <div class="section-title split">
+          <div>
+            <h2>Fundamental metrics dashboard</h2>
+            <p>
+              Track real-time fundamentals across commodities and global indexes with sortable
+              scorecards, catalysts, and valuation signals.
+            </p>
+          </div>
+          <div class="filters">
+            <div class="filter-buttons">
+              <button class="filter-btn active" data-category="all">All</button>
+              <button class="filter-btn" data-category="commodity">Commodities</button>
+              <button class="filter-btn" data-category="index">Indexes</button>
+            </div>
+            <input
+              id="fundamentalSearch"
+              type="search"
+              placeholder="Search assets (gold, oil, S&P 500...)"
+              aria-label="Search assets"
+            />
+          </div>
+        </div>
+        <div class="live-status compact">
+          <div>
+            <strong>Fundamentals feed</strong>
+            <span id="fundamentalsStatus">Awaiting live update</span>
+          </div>
+        </div>
+        <div class="grid three" id="fundamentalCards"></div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Macro fundamentals snapshot</h3>
+            <button class="btn ghost small">Export CSV</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Asset</th>
+                <th>Last</th>
+                <th>1D</th>
+                <th>1W</th>
+                <th>Trend</th>
+                <th>Fundamental driver</th>
+              </tr>
+            </thead>
+            <tbody id="fundamentalTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="silver-model" class="section section-muted">
+        <div class="section-title">
+          <h2>Silver intrinsic model (AISC + scarcity)</h2>
+          <p>
+            Model silver’s intrinsic value using an expanded AISC sample, a marginal-cost tail
+            anchor, settlement timing drift, and scarcity multipliers. Adjust the inputs to reflect
+            your macro assumptions and recalc the distribution.
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="silverModelForm" class="calculator-form">
+            <div class="form-grid">
+              <label class="span-two">
+                AISC sample (one value per line, $/oz)
+                <textarea id="silverAiscSample" rows="6"></textarea>
+              </label>
+              <label>
+                Marginal quantile min
+                <input type="number" step="0.01" id="silverQuantileMin" value="0.85" required />
+              </label>
+              <label>
+                Marginal quantile max
+                <input type="number" step="0.01" id="silverQuantileMax" value="0.95" required />
+              </label>
+              <label>
+                Settlement time min (months)
+                <input type="number" step="0.1" id="silverSettleMin" value="2" required />
+              </label>
+              <label>
+                Settlement time mode (months)
+                <input type="number" step="0.1" id="silverSettleMode" value="4" required />
+              </label>
+              <label>
+                Settlement time max (months)
+                <input type="number" step="0.1" id="silverSettleMax" value="8" required />
+              </label>
+              <label>
+                Cost drift min (%/month)
+                <input type="number" step="0.1" id="silverDriftMin" value="0" required />
+              </label>
+              <label>
+                Cost drift max (%/month)
+                <input type="number" step="0.1" id="silverDriftMax" value="2" required />
+              </label>
+              <label>
+                Scarcity multiplier min
+                <input type="number" step="0.1" id="silverMultMin" value="2.5" required />
+              </label>
+              <label>
+                Scarcity multiplier mode
+                <input type="number" step="0.1" id="silverMultMode" value="3.2" required />
+              </label>
+              <label>
+                Scarcity multiplier max
+                <input type="number" step="0.1" id="silverMultMax" value="4.2" required />
+              </label>
+              <label>
+                Squeeze prob (fast, ≤3 mo)
+                <input type="number" step="0.01" id="silverSqueezeFast" value="0.05" required />
+              </label>
+              <label>
+                Squeeze prob (slow, >3 mo)
+                <input type="number" step="0.01" id="silverSqueezeSlow" value="0.02" required />
+              </label>
+              <label>
+                Identity shift prob
+                <input type="number" step="0.01" id="silverIdentityProb" value="0.01" required />
+              </label>
+              <label>
+                Premium vs COMEX (%)
+                <input type="number" step="0.1" id="silverPremiumPct" value="4" required />
+              </label>
+              <label>
+                Premium sensitivity (alpha)
+                <input type="number" step="0.1" id="silverPremiumAlpha" value="0.5" required />
+              </label>
+              <label>
+                Policy friction bump
+                <input type="number" step="0.1" id="silverPolicyBump" value="0.3" required />
+              </label>
+              <label class="checkbox-field">
+                <span>Policy friction active</span>
+                <input type="checkbox" id="silverPolicyActive" checked />
+              </label>
+              <label>
+                Current spot price ($/oz)
+                <input type="number" step="0.01" id="silverSpotPrice" value="29.5" required />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Run model</button>
+              <button class="btn ghost" type="button" id="silverReset">Reset</button>
+            </div>
+          </form>
+          <div class="calc-results" id="silverResults">
+            <div class="calc-card">
+              <span>Median intrinsic</span>
+              <strong id="silverMedian">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>Mean intrinsic</span>
+              <strong id="silverMean">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>5–95% band</span>
+              <strong id="silverBand">$--</strong>
+              <em>With tails</em>
+            </div>
+            <div class="calc-card">
+              <span>99th percentile</span>
+              <strong id="silverP99">$--</strong>
+              <em>Overshoot tail</em>
+            </div>
+            <div class="calc-card">
+              <span>Base median (no tails)</span>
+              <strong id="silverBaseMedian">$--</strong>
+              <em>Scarcity only</em>
+            </div>
+            <div class="calc-card">
+              <span>Spot vs median</span>
+              <strong id="silverSpotDelta">$--</strong>
+              <em id="silverSpotNote">Spot price comparison</em>
+            </div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Intrinsic price distribution</h3>
+            <span class="table-note">Monte Carlo histogram with spot marker</span>
+          </div>
+          <div class="chart-card">
+            <canvas id="silverDistribution" height="220"></canvas>
+            <div class="chart-tooltip" id="silverTooltip" role="status"></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Margin sensitivity (price vs AISC)</h3>
+            <span class="table-note">Based on sample p10 / median / p90 AISC</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Silver price</th>
+                <th>Margin @ p10</th>
+                <th>Margin @ median</th>
+                <th>Margin @ p90</th>
+              </tr>
+            </thead>
+            <tbody id="silverMarginTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="kwh-oz" class="section">
+        <div class="section-title">
+          <h2>kWh/oz efficiency</h2>
+          <p>
+            Translate grade into energy intensity per payable ounce. Add recovery, payable, mill
+            power, and diesel inputs when available to refine the estimate. Heuristic ranges: heap leach 6–12 kWh/t • conventional mill 20–35 • hard/fine grind 35–60+
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="kwhForm" class="calculator-form">
+            <div class="form-grid">
+              <label>
+                Silver grade (g/t Ag) *
+                <input type="number" step="0.01" id="kwhGrade" required />
+              </label>
+              <label>
+                Recovery (fraction)
+                <input type="number" step="0.01" id="kwhRecovery" placeholder="Default 0.85" />
+              </label>
+              <label>
+                Payable (fraction)
+                <input type="number" step="0.01" id="kwhPayable" placeholder="Default 1.0" />
+              </label>
+              <label>
+                Mill power (kWh/t)
+                <input type="number" step="0.1" id="kwhMill" placeholder="Default 25" />
+              </label>
+              <label>
+                Diesel (L/t mined)
+                <input type="number" step="0.1" id="kwhDiesel" placeholder="Default 0" />
+              </label>
+              <label>
+                Power price low ($/MWh)
+                <input type="number" step="1" id="kwhPowerLow" placeholder="Default 80" />
+              </label>
+              <label>
+                Power price base ($/MWh)
+                <input type="number" step="1" id="kwhPowerBase" placeholder="Default 150" />
+              </label>
+              <label>
+                Power price high ($/MWh)
+                <input type="number" step="1" id="kwhPowerHigh" placeholder="Default 250" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Calculate kWh/oz</button>
+              <button class="btn ghost" type="button" id="kwhReset">Reset</button>
+              <button class="btn ghost" type="button" id="kwhSave">Save result</button>
+            </div>
+          </form>
+          <div class="saved-results">
+            <div class="saved-header">
+              <h3>Saved kWh/oz</h3>
+              <button class="btn ghost small" type="button" id="kwhClearSaved">Clear</button>
+            </div>
+            <ul id="kwhSavedList"></ul>
+          </div>
+          <div class="calc-results" id="kwhResults">
+            <div class="calc-card">
+              <span>oz per tonne</span>
+              <strong id="kwhOzPerT">--</strong>
+              <em>Grade conversion</em>
+            </div>
+            <div class="calc-card">
+              <span>Payable oz per tonne</span>
+              <strong id="kwhPayableOzPerT">--</strong>
+              <em>Recovery × payable</em>
+            </div>
+            <div class="calc-card">
+              <span>t per payable oz</span>
+              <strong id="kwhTPerOz">--</strong>
+              <em>Ore moved per oz</em>
+            </div>
+            <div class="calc-card">
+              <span>kWh/oz (mill)</span>
+              <strong id="kwhPerOzMill">--</strong>
+              <em>Mill-only energy</em>
+            </div>
+            <div class="calc-card">
+              <span>kWh/oz (total)</span>
+              <strong id="kwhPerOzTotal">--</strong>
+              <em>Mill + diesel</em>
+            </div>
+            <div class="calc-card">
+              <span>Energy band</span>
+              <strong id="kwhBand">--</strong>
+              <em>&lt;5 exceptional, 5–12 strong, 12–25 sensitive, &gt;25 pain</em>
+            </div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Power cost per oz (mill-only)</h3>
+            <span class="table-note">Calculated from mill kWh/oz × power price.</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Power price ($/MWh)</th>
+                <th>Cost per oz</th>
+              </tr>
+            </thead>
+            <tbody id="kwhPowerTable"></tbody>
+          </table>
+        </div>
+        <div class="warning-card" id="kwhWarnings">
+          <strong>Defaults applied</strong>
+          <ul></ul>
+        </div>
+      </section>
+
+      <section id="calculator" class="section section-muted">
+        <div class="section-title">
+          <h2>Valuation calculator (producer tiers)</h2>
+          <p>
+            Estimate value for junior, mid-tier, or major producers using a free cash flow multiple
+            approach inspired by Don Durrett-style tiering. All calculations run locally in your
+            browser.
+          </p>
+        </div>
+        <div class="calculator">
+          <form id="valuationForm" class="calculator-form">
+            <div class="form-grid">
+              <label>
+                Producer tier
+                <select id="calcTier">
+                  <option value="junior">Junior producer</option>
+                  <option value="mid" selected>Mid-tier producer</option>
+                  <option value="major">Major producer</option>
+                </select>
+                <span class="field-hint">Typical FCF multiples: junior 5x, mid-tier 8x, major 12x.</span>
+              </label>
+              <label>
+                Commodity price ($/oz or $/unit)
+                <input type="number" step="0.01" id="calcPrice" value="2412" required />
+              </label>
+              <label>
+                Annual production (oz or units)
+                <input type="number" step="1" id="calcProduction" value="950000" required />
+              </label>
+              <label>
+                AISC / cash cost ($/unit)
+                <input type="number" step="0.01" id="calcCost" value="1140" required />
+              </label>
+              <label>
+                Mine life (years)
+                <input type="number" step="1" id="calcMineLife" value="12" required />
+              </label>
+              <label>
+                Discount rate (%)
+                <input type="number" step="0.1" id="calcDiscount" value="9" required />
+              </label>
+              <label>
+                Shares outstanding (millions)
+                <input type="number" step="1" id="calcShares" value="520" required />
+              </label>
+              <label>
+                Net debt (millions)
+                <input type="number" step="1" id="calcDebt" value="450" required />
+              </label>
+              <label>
+                Current stock price ($)
+                <input type="number" step="0.01" id="calcCurrentPrice" value="12.4" required />
+              </label>
+              <label>
+                FCF multiple (x)
+                <input type="number" step="0.1" id="calcFcfMultiple" value="8" required />
+              </label>
+              <label>
+                Save name
+                <input type="text" id="calcSaveName" placeholder="e.g., Base case - Q1" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit">Calculate value</button>
+              <button class="btn ghost" type="button" id="resetCalc">Reset</button>
+              <button class="btn ghost" type="button" id="saveCalc">Save result</button>
+            </div>
+          </form>
+          <div class="saved-results">
+            <div class="saved-header">
+              <h3>Saved calculations</h3>
+              <button class="btn ghost small" type="button" id="clearSaved">Clear</button>
+            </div>
+            <ul id="savedList"></ul>
+          </div>
+          <div class="calc-results" id="calcResults">
+            <div class="calc-card">
+              <span>Annual cash flow</span>
+              <strong id="resultCashflow">$1.2B</strong>
+              <em>Before tax &amp; growth</em>
+            </div>
+            <div class="calc-card">
+              <span>FCF (annual)</span>
+              <strong id="resultFcf">$980M</strong>
+              <em>Auto-derived from margin</em>
+            </div>
+            <div class="calc-card">
+              <span>NPV (after debt)</span>
+              <strong id="resultNpv">$8.6B</strong>
+              <em>Discounted over mine life</em>
+            </div>
+            <div class="calc-card">
+              <span>EV (FCF multiple)</span>
+              <strong id="resultEvMultiple">$7.8B</strong>
+              <em>Tier-based multiple</em>
+            </div>
+            <div class="calc-card">
+              <span>Intrinsic value / share</span>
+              <strong id="resultPerShare">$16.54</strong>
+              <em>Blended NPV &amp; FCF multiple</em>
+            </div>
+            <div class="calc-card">
+              <span>Upside multiple</span>
+              <strong id="resultUpsideMultiple">1.33x</strong>
+              <em>Intrinsic value vs current</em>
+            </div>
+            <div class="calc-card">
+              <span>Upside %</span>
+              <strong id="resultUpsidePercent">+33.4%</strong>
+              <em>Potential return to intrinsic</em>
+            </div>
+            <div class="calc-card">
+              <span>Current market cap</span>
+              <strong id="resultCurrentMcap">$6.4B</strong>
+              <em>Current price × shares</em>
+            </div>
+            <div class="calc-card">
+              <span>Future market cap</span>
+              <strong id="resultFutureMcap">$8.6B</strong>
+              <em>Intrinsic value × shares</em>
+            </div>
+            <div class="calc-card">
+              <span>Tier by market cap</span>
+              <strong id="resultTierNow">Mid-tier</strong>
+              <em id="resultTierNext">Potential: Major</em>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div>
+        <strong>Conflict Investment Master Application</strong>
+        <p>Private research workspace for fundamentals and valuation.</p>
+      </div>
+      <div class="footer-links">
+        <span>Local data</span>
+        <span>Private use</span>
+        <span>No accounts</span>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

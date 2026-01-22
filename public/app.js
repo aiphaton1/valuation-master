@@ -24,6 +24,9 @@ const kwhForm = document.getElementById("kwhForm");
 const kwhReset = document.getElementById("kwhReset");
 const kwhWarnings = document.getElementById("kwhWarnings");
 const kwhPowerTable = document.getElementById("kwhPowerTable");
+const kwhSave = document.getElementById("kwhSave");
+const kwhSavedList = document.getElementById("kwhSavedList");
+const kwhClearSaved = document.getElementById("kwhClearSaved");
 
 let lastHistogram = null;
 
@@ -870,6 +873,85 @@ const calculateKwh = () => {
   }
 
   renderKwhWarnings(warnings);
+  return {
+    inputs: {
+      grade,
+      recovery,
+      payable,
+      millKwh,
+      dieselL,
+      powerLow,
+      powerBase,
+      powerHigh,
+    },
+    outputs: {
+      ozPerT,
+      payableOzPerT,
+      tPerPayableOz,
+      kwhPerOzMill,
+      kwhPerOzTotal,
+      band,
+      costLow: kwhPerOzMill * (powerLow / 1000),
+      costBase: kwhPerOzMill * (powerBase / 1000),
+      costHigh: kwhPerOzMill * (powerHigh / 1000),
+    },
+  };
+};
+
+const loadKwhSaved = () => {
+  if (!kwhSavedList) {
+    return;
+  }
+  const saved = JSON.parse(localStorage.getItem("savedKwh") || "[]");
+  kwhSavedList.innerHTML = "";
+  saved.forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.className = "saved-item";
+    item.innerHTML = `
+      <div>
+        <strong>${entry.label}</strong>
+        <span>${entry.summary}</span>
+      </div>
+      <button class="btn ghost small" data-index="${index}">Load</button>
+    `;
+    kwhSavedList.appendChild(item);
+  });
+};
+
+const saveKwhResult = () => {
+  const result = calculateKwh();
+  if (!result) {
+    return;
+  }
+  const saved = JSON.parse(localStorage.getItem("savedKwh") || "[]");
+  const label = `Grade ${formatNumber(result.inputs.grade, 1)} g/t`;
+  const summary = `${formatNumber(result.outputs.kwhPerOzTotal, 1)} kWh/oz • ${result.outputs.band}`;
+  saved.unshift({
+    createdAt: new Date().toISOString(),
+    label,
+    summary,
+    inputs: result.inputs,
+    outputs: result.outputs,
+  });
+  localStorage.setItem("savedKwh", JSON.stringify(saved.slice(0, 10)));
+  loadKwhSaved();
+};
+
+const loadKwhResult = (index) => {
+  const saved = JSON.parse(localStorage.getItem("savedKwh") || "[]");
+  const entry = saved[index];
+  if (!entry) {
+    return;
+  }
+  document.getElementById("kwhGrade").value = entry.inputs.grade;
+  document.getElementById("kwhRecovery").value = entry.inputs.recovery;
+  document.getElementById("kwhPayable").value = entry.inputs.payable;
+  document.getElementById("kwhMill").value = entry.inputs.millKwh;
+  document.getElementById("kwhDiesel").value = entry.inputs.dieselL;
+  document.getElementById("kwhPowerLow").value = entry.inputs.powerLow;
+  document.getElementById("kwhPowerBase").value = entry.inputs.powerBase;
+  document.getElementById("kwhPowerHigh").value = entry.inputs.powerHigh;
+  calculateKwh();
 };
 
 const readCalcInputs = () => {
@@ -1052,6 +1134,27 @@ if (kwhReset) {
   });
 }
 
+if (kwhSave) {
+  kwhSave.addEventListener("click", saveKwhResult);
+}
+
+if (kwhClearSaved) {
+  kwhClearSaved.addEventListener("click", () => {
+    localStorage.removeItem("savedKwh");
+    loadKwhSaved();
+  });
+}
+
+if (kwhSavedList) {
+  kwhSavedList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-index]");
+    if (!button) {
+      return;
+    }
+    loadKwhResult(Number(button.dataset.index));
+  });
+}
+
 if (silverReset) {
   silverReset.addEventListener("click", resetSilverModel);
 }
@@ -1083,6 +1186,7 @@ updateCalculator();
 resetSilverModel();
 resetKwhOutputs();
 renderKwhWarnings([]);
+loadKwhSaved();
 loadSavedResults();
 
 let refreshTimer = null;

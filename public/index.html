@@ -389,8 +389,16 @@
             <div class="form-actions">
               <button class="btn" type="submit">Calculate kWh/oz</button>
               <button class="btn ghost" type="button" id="kwhReset">Reset</button>
+              <button class="btn ghost" type="button" id="kwhSave">Save result</button>
             </div>
           </form>
+          <div class="saved-results">
+            <div class="saved-header">
+              <h3>Saved kWh/oz</h3>
+              <button class="btn ghost small" type="button" id="kwhClearSaved">Clear</button>
+            </div>
+            <ul id="kwhSavedList"></ul>
+          </div>
           <div class="calc-results" id="kwhResults">
             <div class="calc-card">
               <span>oz per tonne</span>

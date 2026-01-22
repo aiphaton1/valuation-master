@@ -519,7 +519,23 @@ const drawDistribution = (values, spotPrice) => {
     const index = Math.min(bins - 1, Math.floor((clamped - min) / step));
     counts[index] += 1;
   });
-  const maxCount = Math.max(...counts, 1);
+  const smoothedCounts = counts.map((_, index) => {
+    let total = 0;
+    let weight = 0;
+    for (let offset = -1; offset <= 1; offset += 1) {
+      const sampleIndex = index + offset;
+      if (sampleIndex >= 0 && sampleIndex < bins) {
+        total += counts[sampleIndex];
+        weight += 1;
+      }
+    }
+    return weight > 0 ? total / weight : 0;
+  });
+  const rawTotal = counts.reduce((sum, value) => sum + value, 0);
+  const smoothTotal = smoothedCounts.reduce((sum, value) => sum + value, 0);
+  const scale = smoothTotal > 0 ? rawTotal / smoothTotal : 1;
+  const scaledCounts = smoothedCounts.map((value) => value * scale);
+  const maxCount = Math.max(...scaledCounts, 1);
   const padding = 24;
   const chartHeight = height - padding * 2;
   const chartWidth = width - padding * 2;
@@ -532,7 +548,7 @@ const drawDistribution = (values, spotPrice) => {
   ctx.lineTo(width - padding, height - padding);
   ctx.stroke();
 
-  counts.forEach((count, index) => {
+  scaledCounts.forEach((count, index) => {
     const barHeight = (count / maxCount) * chartHeight;
     const x = padding + index * barWidth;
     const y = height - padding - barHeight;
@@ -571,7 +587,7 @@ const drawDistribution = (values, spotPrice) => {
     max,
     bins,
     step,
-    counts,
+    counts: scaledCounts,
     padding,
     chartWidth,
     barWidth,

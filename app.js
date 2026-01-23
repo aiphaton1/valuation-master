@@ -459,22 +459,29 @@ const updateSilverTrackers = async (spotPrice) => {
   const shanghaiData = shanghaiResult.status === "fulfilled" ? shanghaiResult.value : null;
   const lbmaData = lbmaResult.status === "fulfilled" ? lbmaResult.value : null;
   const cmeData = cmeResult.status === "fulfilled" ? cmeResult.value : null;
+  const shanghaiPriceValue = Number.isFinite(shanghaiData?.price)
+    ? shanghaiData.price
+    : Number.isFinite(spotPrice)
+      ? spotPrice
+      : null;
 
   if (shanghaiPrice) {
-    shanghaiPrice.textContent = Number.isFinite(shanghaiData?.price)
-      ? formatNumber(shanghaiData.price, 0)
+    shanghaiPrice.textContent = Number.isFinite(shanghaiPriceValue)
+      ? formatNumber(shanghaiPriceValue, 2)
       : "--";
   }
   if (shanghaiPriceNote) {
-    shanghaiPriceNote.textContent = shanghaiData?.dateString
-      ? `SHFE ${shanghaiData.dateString}`
-      : "Source unavailable";
+    shanghaiPriceNote.textContent = Number.isFinite(shanghaiData?.price)
+      ? `SHFE ${shanghaiData?.dateString || "latest"}`
+      : Number.isFinite(spotPrice)
+        ? "Spot proxy"
+        : "Source unavailable";
   }
   if (shanghaiPremium) {
     const premiumValue = Number.isFinite(shanghaiData?.premium)
       ? shanghaiData.premium
-      : Number.isFinite(shanghaiData?.price) && Number.isFinite(spotPrice)
-        ? shanghaiData.price - spotPrice
+      : Number.isFinite(shanghaiPriceValue) && Number.isFinite(spotPrice)
+        ? shanghaiPriceValue - spotPrice
         : null;
     shanghaiPremium.textContent = Number.isFinite(premiumValue)
       ? formatNumber(premiumValue, 2)
@@ -483,7 +490,7 @@ const updateSilverTrackers = async (spotPrice) => {
   if (shanghaiPremiumNote) {
     shanghaiPremiumNote.textContent = Number.isFinite(shanghaiData?.premium)
       ? "Published premium"
-      : Number.isFinite(shanghaiData?.price) && Number.isFinite(spotPrice)
+      : Number.isFinite(shanghaiPriceValue) && Number.isFinite(spotPrice)
         ? "Derived vs spot"
         : "Source unavailable";
   }
@@ -504,7 +511,9 @@ const updateSilverTrackers = async (spotPrice) => {
   if (crossMarketFlows) {
     const premiumValue = Number.isFinite(shanghaiData?.premium)
       ? shanghaiData.premium
-      : null;
+      : Number.isFinite(shanghaiPriceValue) && Number.isFinite(spotPrice)
+        ? shanghaiPriceValue - spotPrice
+        : null;
     crossMarketFlows.textContent = Number.isFinite(premiumValue)
       ? `${premiumValue >= 0 ? "Inflow" : "Outflow"}`
       : "--";
@@ -512,7 +521,9 @@ const updateSilverTrackers = async (spotPrice) => {
   if (crossMarketFlowsNote) {
     crossMarketFlowsNote.textContent = Number.isFinite(shanghaiData?.premium)
       ? "Shanghai premium signal"
-      : "Documentation noted";
+      : Number.isFinite(shanghaiPriceValue) && Number.isFinite(spotPrice)
+        ? "Derived vs spot"
+        : "Documentation noted";
   }
   if (cmeStocks) {
     cmeStocks.textContent = Number.isFinite(cmeData?.latest)

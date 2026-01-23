@@ -20,6 +20,15 @@ const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
 const silverDistribution = document.getElementById("silverDistribution");
 const silverTooltip = document.getElementById("silverTooltip");
+const ratioPlatinumSilver = document.getElementById("ratioPlatinumSilver");
+const targetPlatinumSilver = document.getElementById("targetPlatinumSilver");
+const upsidePlatinumSilver = document.getElementById("upsidePlatinumSilver");
+const ratioPlatinumGold = document.getElementById("ratioPlatinumGold");
+const targetPlatinumGold = document.getElementById("targetPlatinumGold");
+const upsidePlatinumGold = document.getElementById("upsidePlatinumGold");
+const ratioGoldSilver = document.getElementById("ratioGoldSilver");
+const targetGoldSilver = document.getElementById("targetGoldSilver");
+const upsideGoldSilver = document.getElementById("upsideGoldSilver");
 const silverTrackerStatus = document.getElementById("silverTrackerStatus");
 const shanghaiPrice = document.getElementById("shanghaiPrice");
 const shanghaiPriceNote = document.getElementById("shanghaiPriceNote");
@@ -716,6 +725,11 @@ const updateLiveData = async () => {
   }
   const spotPrice = Number(quoteBySymbol[stooqMap.XAG]?.close);
   updateSilverTrackers(Number.isFinite(spotPrice) ? spotPrice : null);
+  updateMetalRatios({
+    gold: Number(quoteBySymbol[stooqMap.XAU]?.close),
+    silver: Number(quoteBySymbol[stooqMap.XAG]?.close),
+    platinum: Number(quoteBySymbol[stooqMap.XPT]?.close),
+  });
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
   renderFundamentals();
 };
@@ -792,6 +806,63 @@ const renderFundamentals = () => {
     `;
     fundamentalTableBody.appendChild(row);
   });
+};
+
+const parseTargetRatio = (element) => {
+  if (!element) {
+    return null;
+  }
+  const value = Number(element.textContent);
+  return Number.isFinite(value) ? value : null;
+};
+
+const formatRatio = (value) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return value.toFixed(2);
+};
+
+const updateMetalRatios = ({ gold, silver, platinum }) => {
+  if (
+    !ratioPlatinumSilver ||
+    !ratioPlatinumGold ||
+    !ratioGoldSilver ||
+    !targetPlatinumSilver ||
+    !targetPlatinumGold ||
+    !targetGoldSilver ||
+    !upsidePlatinumSilver ||
+    !upsidePlatinumGold ||
+    !upsideGoldSilver
+  ) {
+    return;
+  }
+
+  const platinumSilver = Number.isFinite(platinum) && Number.isFinite(silver) ? platinum / silver : null;
+  const platinumGold = Number.isFinite(platinum) && Number.isFinite(gold) ? platinum / gold : null;
+  const goldSilver = Number.isFinite(gold) && Number.isFinite(silver) ? gold / silver : null;
+
+  ratioPlatinumSilver.textContent = formatRatio(platinumSilver);
+  ratioPlatinumGold.textContent = formatRatio(platinumGold);
+  ratioGoldSilver.textContent = formatRatio(goldSilver);
+
+  const targets = {
+    platinumSilver: parseTargetRatio(targetPlatinumSilver),
+    platinumGold: parseTargetRatio(targetPlatinumGold),
+    goldSilver: parseTargetRatio(targetGoldSilver),
+  };
+
+  const calcUpside = (current, target) => {
+    if (!Number.isFinite(current) || !Number.isFinite(target) || current === 0) {
+      return "--";
+    }
+    const upside = (target / current - 1) * 100;
+    return `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%`;
+  };
+
+  upsidePlatinumSilver.textContent = calcUpside(platinumSilver, targets.platinumSilver);
+  upsidePlatinumGold.textContent = calcUpside(platinumGold, targets.platinumGold);
+  upsideGoldSilver.textContent = calcUpside(goldSilver, targets.goldSilver);
 };
 
 const formatCurrency = (value) => {

@@ -617,7 +617,7 @@ const updateLiveData = async () => {
     const low = Number(quote.low);
     const dayChange = open ? ((close - open) / open) * 100 : 0;
     const rangeChange = low ? ((high - low) / low) * 100 : 0;
-    item.price = Number.isFinite(close) ? close.toFixed(2) : item.price;
+    item.price = Number.isFinite(close) ? formatSpotValue(close, item.category) : item.price;
     item.day = formatChange(dayChange);
     item.week = formatChange(rangeChange);
     item.trend = dayChange >= 0 ? "up" : "down";
@@ -871,6 +871,13 @@ const formatCurrency = (value) => {
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(value);
+};
+
+const formatSpotValue = (value, category) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return category === "commodity" ? formatCurrency(value) : value.toFixed(2);
 };
 
 const defaultAiscSample = [

@@ -263,6 +263,25 @@ const safeParseJson = (text) => {
   }
 };
 
+const normalizeRowKeys = (row) => {
+  if (!row) {
+    return {};
+  }
+  return Object.keys(row).reduce((acc, key) => {
+    acc[key.toLowerCase()] = row[key];
+    return acc;
+  }, {});
+};
+
+const findRowValue = (row, keys) => {
+  for (const key of keys) {
+    if (row[key] !== undefined) {
+      return row[key];
+    }
+  }
+  return undefined;
+};
+
 const fetchFearGreed = async () => {
   const endpoint = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
   const { text, source } = await fetchWithFallbacks(endpoint);
@@ -317,23 +336,32 @@ const fetchShanghaiSilver = async () => {
       const data = safeParseJson(cleaned);
       const rows = data?.o_curinstrument || data?.o_curinstrment || data?.o_curinstrument || [];
       const silverRow = rows.find((row) => {
-        const product = String(row.PRODUCTID || row.PRODUCTNAME || "").toUpperCase();
+        const normalized = normalizeRowKeys(row);
+        const product = String(
+          findRowValue(normalized, ["productid", "productname", "instrumentid", "contract"])
+        ).toUpperCase();
         return product.includes("AG") || product.includes("SILVER");
       });
+      const normalized = normalizeRowKeys(silverRow);
       const price = silverRow
         ? Number(
-            silverRow.CLOSEPRICE ||
-              silverRow.SETTLEMENTPRICE ||
-              silverRow.LASTPRICE ||
-              silverRow.PRECLOSEPRICE
+            findRowValue(normalized, [
+              "closeprice",
+              "settlementprice",
+              "lastprice",
+              "precloseprice",
+              "openprice",
+            ])
           )
         : null;
       const premium = silverRow
         ? Number(
-            silverRow.PREMIUM ||
-              silverRow.PREMIUMPRICE ||
-              silverRow.PREMIUMVALUE ||
-              silverRow.PREMIUM_RATE
+            findRowValue(normalized, [
+              "premium",
+              "premiumprice",
+              "premiumvalue",
+              "premium_rate",
+            ])
           )
         : null;
       return {

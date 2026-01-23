@@ -20,6 +20,17 @@ const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
 const silverDistribution = document.getElementById("silverDistribution");
 const silverTooltip = document.getElementById("silverTooltip");
+const silverTrackerStatus = document.getElementById("silverTrackerStatus");
+const shanghaiPrice = document.getElementById("shanghaiPrice");
+const shanghaiPriceNote = document.getElementById("shanghaiPriceNote");
+const shanghaiPremium = document.getElementById("shanghaiPremium");
+const shanghaiPremiumNote = document.getElementById("shanghaiPremiumNote");
+const londonInventory = document.getElementById("londonInventory");
+const londonInventoryNote = document.getElementById("londonInventoryNote");
+const crossMarketFlows = document.getElementById("crossMarketFlows");
+const crossMarketFlowsNote = document.getElementById("crossMarketFlowsNote");
+const cmeStocks = document.getElementById("cmeStocks");
+const cmeStocksNote = document.getElementById("cmeStocksNote");
 const kwhForm = document.getElementById("kwhForm");
 const kwhReset = document.getElementById("kwhReset");
 const kwhWarnings = document.getElementById("kwhWarnings");
@@ -199,6 +210,13 @@ const formatVolume = (value) => {
   return `${Math.round(value)}`;
 };
 
+const formatTonnage = (value) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return `${value.toFixed(1)}t`;
+};
+
 const proxySources = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url) => `https://cors.isomorphic-git.org/${url}`,
@@ -235,6 +253,14 @@ const fetchStooqQuote = async (symbol) => {
   return { quote: parseStooqCsv(text), source };
 };
 
+const safeParseJson = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return null;
+  }
+};
+
 const fetchFearGreed = async () => {
   const endpoint = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
   const { text, source } = await fetchWithFallbacks(endpoint);
@@ -267,6 +293,188 @@ const fetchGldHoldings = async () => {
   const latest = toNumber(rows[rows.length - 1][totalKey]);
   const previous = toNumber(rows[rows.length - 2][totalKey]);
   return { latest, previous, source };
+};
+
+const buildDateString = (date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}${month}${day}`;
+};
+
+const fetchShanghaiSilver = async () => {
+  const today = new Date();
+  for (let offset = 0; offset < 5; offset += 1) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - offset);
+    const dateString = buildDateString(checkDate);
+    const endpoint = `https://www.shfe.com.cn/data/dailydata/kx/kx${dateString}.dat`;
+    try {
+      const { text, source } = await fetchWithFallbacks(endpoint);
+      const cleaned = text.trim().replace(/^var\\s+\\w+\\s*=\\s*/, "").replace(/;$/, "");
+      const data = safeParseJson(cleaned);
+      const rows = data?.o_curinstrument || data?.o_curinstrment || data?.o_curinstrument || [];
+      const silverRow = rows.find((row) => {
+        const product = String(row.PRODUCTID || row.PRODUCTNAME || "").toUpperCase();
+        return product.includes("AG") || product.includes("SILVER");
+      });
+      if (silverRow) {
+        const price = Number(
+          silverRow.CLOSEPRICE ||
+            silverRow.SETTLEMENTPRICE ||
+            silverRow.LASTPRICE ||
+            silverRow.PRECLOSEPRICE
+        );
+        const premium = Number(
+          silverRow.PREMIUM ||
+            silverRow.PREMIUMPRICE ||
+            silverRow.PREMIUMVALUE ||
+            silverRow.PREMIUM_RATE
+        );
+        return {
+          dateString,
+          price,
+          premium: Number.isFinite(premium) ? premium : null,
+          source,
+        };
+      }
+    } catch (error) {
+      // Try previous date.
+    }
+  }
+  return { dateString: null, price: null, premium: null, source: null };
+};
+
+const fetchLbmaSilverInventory = async () => {
+  const endpoint = "https://www.lbma.org.uk/api/v1/publications/vault-holdings?metal=silver";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const data = safeParseJson(text);
+  const rows = data?.data || data?.vault_holdings || data?.items || [];
+  if (!Array.isArray(rows) || rows.length < 2) {
+    return { latest: null, previous: null, source };
+  }
+  const getValue = (row) =>
+    Number(
+      row.silver ||
+        row.total ||
+        row.total_tonnes ||
+        row.totalTonnes ||
+        row.tonnes ||
+        row.value
+    );
+  const latest = getValue(rows[rows.length - 1]);
+  const previous = getValue(rows[rows.length - 2]);
+  return { latest, previous, source };
+};
+
+const fetchCmeSilverStocks = async () => {
+  const endpoint = "https://www.cmegroup.com/CmeWS/mvc/Settlement/StockReport?commodity=Silver";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const data = safeParseJson(text);
+  if (data?.stockReport) {
+    const rows = data.stockReport;
+    const totalRow = rows.find((row) =>
+      String(row.warehouse || row.facility || row.name || "").toLowerCase().includes("total")
+    );
+    const latest = Number(totalRow?.total || totalRow?.grandTotal || totalRow?.inventory);
+    return { latest, previous: null, source };
+  }
+  const rows = parseCsvRows(text);
+  const totalRow = rows.find((row) =>
+    Object.values(row).some((value) => String(value).toLowerCase().includes("total"))
+  );
+  const totalKey = totalRow
+    ? Object.keys(totalRow).find((key) => key.includes("total")) || null
+    : null;
+  const latest = totalKey ? Number(totalRow[totalKey]) : null;
+  return { latest: Number.isFinite(latest) ? latest : null, previous: null, source };
+};
+
+const updateSilverTrackers = async (spotPrice) => {
+  if (!silverTrackerStatus) {
+    return;
+  }
+  const [shanghaiResult, lbmaResult, cmeResult] = await Promise.allSettled([
+    fetchShanghaiSilver(),
+    fetchLbmaSilverInventory(),
+    fetchCmeSilverStocks(),
+  ]);
+
+  const shanghaiData = shanghaiResult.status === "fulfilled" ? shanghaiResult.value : null;
+  const lbmaData = lbmaResult.status === "fulfilled" ? lbmaResult.value : null;
+  const cmeData = cmeResult.status === "fulfilled" ? cmeResult.value : null;
+
+  if (shanghaiPrice) {
+    shanghaiPrice.textContent = Number.isFinite(shanghaiData?.price)
+      ? formatNumber(shanghaiData.price, 0)
+      : "--";
+  }
+  if (shanghaiPriceNote) {
+    shanghaiPriceNote.textContent = shanghaiData?.dateString
+      ? `SHFE ${shanghaiData.dateString}`
+      : "Source unavailable";
+  }
+  if (shanghaiPremium) {
+    const premiumValue = Number.isFinite(shanghaiData?.premium)
+      ? shanghaiData.premium
+      : Number.isFinite(shanghaiData?.price) && Number.isFinite(spotPrice)
+        ? shanghaiData.price - spotPrice
+        : null;
+    shanghaiPremium.textContent = Number.isFinite(premiumValue)
+      ? formatNumber(premiumValue, 2)
+      : "--";
+  }
+  if (shanghaiPremiumNote) {
+    shanghaiPremiumNote.textContent = Number.isFinite(shanghaiData?.premium)
+      ? "Published premium"
+      : Number.isFinite(shanghaiData?.price) && Number.isFinite(spotPrice)
+        ? "Derived vs spot"
+        : "Source unavailable";
+  }
+  if (londonInventory) {
+    londonInventory.textContent = Number.isFinite(lbmaData?.latest)
+      ? formatTonnage(lbmaData.latest)
+      : "--";
+  }
+  if (londonInventoryNote) {
+    const change =
+      Number.isFinite(lbmaData?.latest) && Number.isFinite(lbmaData?.previous)
+        ? lbmaData.latest - lbmaData.previous
+        : null;
+    londonInventoryNote.textContent = Number.isFinite(change)
+      ? `${formatTonnage(change)} vs prior`
+      : "LBMA vault holdings";
+  }
+  if (crossMarketFlows) {
+    const premiumValue = Number.isFinite(shanghaiData?.premium)
+      ? shanghaiData.premium
+      : null;
+    crossMarketFlows.textContent = Number.isFinite(premiumValue)
+      ? `${premiumValue >= 0 ? "Inflow" : "Outflow"}`
+      : "--";
+  }
+  if (crossMarketFlowsNote) {
+    crossMarketFlowsNote.textContent = Number.isFinite(shanghaiData?.premium)
+      ? "Shanghai premium signal"
+      : "Documentation noted";
+  }
+  if (cmeStocks) {
+    cmeStocks.textContent = Number.isFinite(cmeData?.latest)
+      ? formatTonnage(cmeData.latest)
+      : "--";
+  }
+  if (cmeStocksNote) {
+    cmeStocksNote.textContent = cmeData?.source
+      ? "CME daily stocks"
+      : "Source unavailable";
+  }
+
+  const sources = [shanghaiData?.source, lbmaData?.source, cmeData?.source]
+    .filter(Boolean)
+    .join(", ");
+  silverTrackerStatus.textContent = sources
+    ? `Updated ${new Date().toLocaleTimeString()} (${sources})`
+    : "Live data unavailable";
 };
 
 const updateLiveData = async () => {
@@ -415,6 +623,8 @@ const updateLiveData = async () => {
       ? `Updated at ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
       : "Live feed unavailable";
   }
+  const spotPrice = Number(quoteBySymbol[stooqMap.XAG]?.close);
+  updateSilverTrackers(Number.isFinite(spotPrice) ? spotPrice : null);
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
   renderFundamentals();
 };

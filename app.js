@@ -221,6 +221,8 @@ const proxySources = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url) => `https://cors.isomorphic-git.org/${url}`,
   (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
 ];
 
 const fetchWithFallbacks = async (url) => {
@@ -318,26 +320,28 @@ const fetchShanghaiSilver = async () => {
         const product = String(row.PRODUCTID || row.PRODUCTNAME || "").toUpperCase();
         return product.includes("AG") || product.includes("SILVER");
       });
-      if (silverRow) {
-        const price = Number(
-          silverRow.CLOSEPRICE ||
-            silverRow.SETTLEMENTPRICE ||
-            silverRow.LASTPRICE ||
-            silverRow.PRECLOSEPRICE
-        );
-        const premium = Number(
-          silverRow.PREMIUM ||
-            silverRow.PREMIUMPRICE ||
-            silverRow.PREMIUMVALUE ||
-            silverRow.PREMIUM_RATE
-        );
-        return {
-          dateString,
-          price,
-          premium: Number.isFinite(premium) ? premium : null,
-          source,
-        };
-      }
+      const price = silverRow
+        ? Number(
+            silverRow.CLOSEPRICE ||
+              silverRow.SETTLEMENTPRICE ||
+              silverRow.LASTPRICE ||
+              silverRow.PRECLOSEPRICE
+          )
+        : null;
+      const premium = silverRow
+        ? Number(
+            silverRow.PREMIUM ||
+              silverRow.PREMIUMPRICE ||
+              silverRow.PREMIUMVALUE ||
+              silverRow.PREMIUM_RATE
+          )
+        : null;
+      return {
+        dateString,
+        price,
+        premium: Number.isFinite(premium) ? premium : null,
+        source,
+      };
     } catch (error) {
       // Try previous date.
     }
@@ -368,6 +372,30 @@ const fetchLbmaSilverInventory = async () => {
 };
 
 const fetchCmeSilverStocks = async () => {
+  const today = new Date();
+  for (let offset = 0; offset < 5; offset += 1) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - offset);
+    const dateString = buildDateString(checkDate);
+    const dailyEndpoint = `https://www.cmegroup.com/ftp/pub/settle/stocks/comex_stocks_${dateString}.csv`;
+    try {
+      const { text, source } = await fetchWithFallbacks(dailyEndpoint);
+      const rows = parseCsvRows(text);
+      const silverRow = rows.find((row) =>
+        Object.values(row).some((value) => String(value).toLowerCase().includes("silver"))
+      );
+      if (silverRow) {
+        const totalKey =
+          Object.keys(silverRow).find((key) => key.includes("total") && key.includes("oz")) ||
+          Object.keys(silverRow).find((key) => key.includes("total"));
+        const latest = totalKey ? Number(silverRow[totalKey]) : null;
+        return { latest: Number.isFinite(latest) ? latest : null, previous: null, source };
+      }
+      return { latest: null, previous: null, source };
+    } catch (error) {
+      // Try prior date.
+    }
+  }
   const endpoint = "https://www.cmegroup.com/CmeWS/mvc/Settlement/StockReport?commodity=Silver";
   const { text, source } = await fetchWithFallbacks(endpoint);
   const data = safeParseJson(text);
@@ -377,7 +405,7 @@ const fetchCmeSilverStocks = async () => {
       String(row.warehouse || row.facility || row.name || "").toLowerCase().includes("total")
     );
     const latest = Number(totalRow?.total || totalRow?.grandTotal || totalRow?.inventory);
-    return { latest, previous: null, source };
+    return { latest: Number.isFinite(latest) ? latest : null, previous: null, source };
   }
   const rows = parseCsvRows(text);
   const totalRow = rows.find((row) =>

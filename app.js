@@ -170,6 +170,35 @@ const parseStooqCsv = (text) => {
   return row;
 };
 
+const parseCsvRows = (text) => {
+  const lines = text.trim().split("\n");
+  if (lines.length < 2) {
+    return [];
+  }
+  const headers = lines[0].split(",").map((header) => header.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const values = line.split(",");
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = (values[index] || "").trim();
+    });
+    return row;
+  });
+};
+
+const formatVolume = (value) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round(value / 1_000)}K`;
+  }
+  return `${Math.round(value)}`;
+};
+
 const proxySources = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url) => `https://cors.isomorphic-git.org/${url}`,
@@ -206,6 +235,40 @@ const fetchStooqQuote = async (symbol) => {
   return { quote: parseStooqCsv(text), source };
 };
 
+const fetchFearGreed = async () => {
+  const endpoint = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const data = JSON.parse(text);
+  const points = data?.fear_and_greed?.data || [];
+  if (points.length < 2) {
+    return { latest: null, previous: null, source };
+  }
+  const latest = points[points.length - 1]?.value;
+  const previous = points[points.length - 2]?.value;
+  return { latest, previous, source };
+};
+
+const fetchGldHoldings = async () => {
+  const endpoint = "https://prod.cdn.spdrgoldshares.com/GLD/GLD_Holdings.csv";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const lines = text.trim().split("\n");
+  const headerIndex = lines.findIndex((line) => line.toLowerCase().includes("date"));
+  if (headerIndex === -1) {
+    return { latest: null, previous: null, source };
+  }
+  const rows = parseCsvRows(lines.slice(headerIndex).join("\n"));
+  const totalKey =
+    Object.keys(rows[0] || {}).find((key) => key.includes("total") && key.includes("ton")) ||
+    Object.keys(rows[0] || {}).find((key) => key.includes("total"));
+  if (!totalKey || rows.length < 2) {
+    return { latest: null, previous: null, source };
+  }
+  const toNumber = (value) => Number(String(value || "").replace(/[^0-9.-]/g, ""));
+  const latest = toNumber(rows[rows.length - 1][totalKey]);
+  const previous = toNumber(rows[rows.length - 2][totalKey]);
+  return { latest, previous, source };
+};
+
 const updateLiveData = async () => {
   const stooqMap = {
     XAU: "xauusd",
@@ -217,6 +280,7 @@ const updateLiveData = async () => {
     NDX: "ndx",
     DXY: "usdx",
     EEM: "eem",
+    GC: "gc.f",
   };
   const symbols = Object.values(stooqMap);
   let quoteBySymbol = {};
@@ -257,18 +321,28 @@ const updateLiveData = async () => {
     ];
   });
 
-  metrics.premium = metrics.premium.map((metric) => {
-    const lookup = {
-      "Spot Gold": "XAU",
-      "Comex Volume": "CL",
-      "ETF Flows": "EEM",
-      "Sentiment Score": "SPX",
-    };
+  const lookup = {
+    "Spot Gold": "XAU",
+    "Comex Volume": "GC",
+  };
+  const updateMetric = (metric) => {
     const symbol = lookup[metric.label];
+    if (!symbol) {
+      return metric;
+    }
     const stooqSymbol = stooqMap[symbol];
     const quote = quoteBySymbol[stooqSymbol];
     if (!quote) {
       return metric;
+    }
+    if (metric.label === "Comex Volume") {
+      const volume = Number(quote.vol);
+      return {
+        ...metric,
+        value: Number.isFinite(volume) ? formatVolume(volume) : metric.value,
+        delta: "GC futures",
+        trend: Number.isFinite(volume) ? "up" : metric.trend,
+      };
     }
     const close = Number(quote.close);
     const open = Number(quote.open);
@@ -279,7 +353,55 @@ const updateLiveData = async () => {
       delta: formatChange(dayChange),
       trend: dayChange >= 0 ? "up" : "down",
     };
-  });
+  };
+
+  const [fearGreedResult, gldResult] = await Promise.allSettled([
+    fetchFearGreed(),
+    fetchGldHoldings(),
+  ]);
+
+  const updateSentiment = (metric) => {
+    if (metric.label !== "Sentiment Score") {
+      return metric;
+    }
+    if (fearGreedResult.status !== "fulfilled") {
+      return metric;
+    }
+    const latest = Number(fearGreedResult.value.latest);
+    const previous = Number(fearGreedResult.value.previous);
+    const change = Number.isFinite(latest) && Number.isFinite(previous) ? latest - previous : 0;
+    return {
+      ...metric,
+      value: Number.isFinite(latest) ? `${Math.round(latest)}` : metric.value,
+      delta: Number.isFinite(change) ? formatChange(change) : metric.delta,
+      trend: change >= 0 ? "up" : "down",
+    };
+  };
+
+  const updateEtfFlows = (metric) => {
+    if (metric.label !== "ETF Flows") {
+      return metric;
+    }
+    if (gldResult.status !== "fulfilled") {
+      return metric;
+    }
+    const latest = Number(gldResult.value.latest);
+    const previous = Number(gldResult.value.previous);
+    const change = Number.isFinite(latest) && Number.isFinite(previous) ? latest - previous : 0;
+    return {
+      ...metric,
+      value: Number.isFinite(change) ? `${change >= 0 ? "+" : ""}${change.toFixed(1)}t` : metric.value,
+      delta: Number.isFinite(latest) ? `${latest.toFixed(1)}t holdings` : metric.delta,
+      trend: change >= 0 ? "up" : "down",
+    };
+  };
+
+  metrics.premium = metrics.premium.map((metric) =>
+    updateEtfFlows(updateSentiment(updateMetric(metric)))
+  );
+  metrics.standard = metrics.standard.map((metric) =>
+    updateEtfFlows(updateSentiment(updateMetric(metric)))
+  );
 
   const now = new Date();
   const success = Object.keys(quoteBySymbol).length > 0;

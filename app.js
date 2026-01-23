@@ -25,6 +25,7 @@ const kwhReset = document.getElementById("kwhReset");
 const kwhWarnings = document.getElementById("kwhWarnings");
 const kwhPowerTable = document.getElementById("kwhPowerTable");
 const kwhSave = document.getElementById("kwhSave");
+const kwhSaveName = document.getElementById("kwhSaveName");
 const kwhSavedList = document.getElementById("kwhSavedList");
 const kwhClearSaved = document.getElementById("kwhClearSaved");
 
@@ -1019,7 +1020,8 @@ const saveKwhResult = () => {
     return;
   }
   const saved = JSON.parse(localStorage.getItem("savedKwh") || "[]");
-  const label = `Grade ${formatNumber(result.inputs.grade, 1)} g/t`;
+  const customLabel = kwhSaveName?.value?.trim();
+  const label = customLabel || `Grade ${formatNumber(result.inputs.grade, 1)} g/t`;
   const summary = `${formatNumber(result.outputs.kwhPerOzTotal, 1)} kWh/oz • ${result.outputs.band}`;
   saved.unshift({
     createdAt: new Date().toISOString(),
@@ -1030,6 +1032,9 @@ const saveKwhResult = () => {
   });
   localStorage.setItem("savedKwh", JSON.stringify(saved.slice(0, 10)));
   loadKwhSaved();
+  if (kwhSaveName) {
+    kwhSaveName.value = "";
+  }
 };
 
 const loadKwhResult = (index) => {

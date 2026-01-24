@@ -20,18 +20,18 @@ const silverAiscSample = document.getElementById("silverAiscSample");
 const silverMarginTable = document.getElementById("silverMarginTable");
 const silverDistribution = document.getElementById("silverDistribution");
 const silverTooltip = document.getElementById("silverTooltip");
-const ratioPlatinumSilver = document.getElementById("ratioPlatinumSilver");
-const targetPlatinumSilver = document.getElementById("targetPlatinumSilver");
-const upsidePlatinumSilver = document.getElementById("upsidePlatinumSilver");
-const ratioPlatinumGold = document.getElementById("ratioPlatinumGold");
-const targetPlatinumGold = document.getElementById("targetPlatinumGold");
-const upsidePlatinumGold = document.getElementById("upsidePlatinumGold");
-const oneToOnePlatinumGold = document.getElementById("oneToOnePlatinumGold");
+const ratioGoldPlatinum = document.getElementById("ratioGoldPlatinum");
+const targetGoldPlatinum = document.getElementById("targetGoldPlatinum");
+const upsideGoldPlatinum = document.getElementById("upsideGoldPlatinum");
+const oneToOneGoldPlatinum = document.getElementById("oneToOneGoldPlatinum");
 const ratioGoldSilver = document.getElementById("ratioGoldSilver");
 const targetGoldSilver = document.getElementById("targetGoldSilver");
 const upsideGoldSilver = document.getElementById("upsideGoldSilver");
 const oneToOneGoldSilver = document.getElementById("oneToOneGoldSilver");
 const oneToOnePlatinumSilver = document.getElementById("oneToOnePlatinumSilver");
+const ratioPlatinumSilver = document.getElementById("ratioPlatinumSilver");
+const targetPlatinumSilver = document.getElementById("targetPlatinumSilver");
+const upsidePlatinumSilver = document.getElementById("upsidePlatinumSilver");
 const silverTrackerStatus = document.getElementById("silverTrackerStatus");
 const shanghaiPrice = document.getElementById("shanghaiPrice");
 const shanghaiPriceNote = document.getElementById("shanghaiPriceNote");
@@ -828,34 +828,35 @@ const formatRatio = (value) => {
 
 const updateMetalRatios = ({ gold, silver, platinum }) => {
   if (
-    !ratioPlatinumSilver ||
-    !ratioPlatinumGold ||
+    !ratioGoldPlatinum ||
     !ratioGoldSilver ||
-    !targetPlatinumSilver ||
-    !targetPlatinumGold ||
+    !ratioPlatinumSilver ||
+    !targetGoldPlatinum ||
     !targetGoldSilver ||
-    !upsidePlatinumSilver ||
-    !upsidePlatinumGold ||
+    !targetPlatinumSilver ||
+    !upsideGoldPlatinum ||
     !upsideGoldSilver ||
     !oneToOnePlatinumSilver ||
-    !oneToOnePlatinumGold ||
+    !oneToOneGoldPlatinum ||
     !oneToOneGoldSilver
   ) {
     return;
   }
 
-  const platinumSilver = Number.isFinite(platinum) && Number.isFinite(silver) ? platinum / silver : null;
-  const platinumGold = Number.isFinite(platinum) && Number.isFinite(gold) ? platinum / gold : null;
+  const goldPlatinum =
+    Number.isFinite(gold) && Number.isFinite(platinum) ? gold / platinum : null;
   const goldSilver = Number.isFinite(gold) && Number.isFinite(silver) ? gold / silver : null;
+  const platinumSilver =
+    Number.isFinite(platinum) && Number.isFinite(silver) ? platinum / silver : null;
 
-  ratioPlatinumSilver.textContent = formatRatio(platinumSilver);
-  ratioPlatinumGold.textContent = formatRatio(platinumGold);
+  ratioGoldPlatinum.textContent = formatRatio(goldPlatinum);
   ratioGoldSilver.textContent = formatRatio(goldSilver);
+  ratioPlatinumSilver.textContent = formatRatio(platinumSilver);
 
   const targets = {
-    platinumSilver: parseTargetRatio(targetPlatinumSilver),
-    platinumGold: parseTargetRatio(targetPlatinumGold),
+    goldPlatinum: parseTargetRatio(targetGoldPlatinum),
     goldSilver: parseTargetRatio(targetGoldSilver),
+    platinumSilver: parseTargetRatio(targetPlatinumSilver),
   };
 
   const calcUpside = (current, target) => {
@@ -866,12 +867,12 @@ const updateMetalRatios = ({ gold, silver, platinum }) => {
     return `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%`;
   };
 
-  upsidePlatinumSilver.textContent = calcUpside(platinumSilver, targets.platinumSilver);
-  upsidePlatinumGold.textContent = calcUpside(platinumGold, targets.platinumGold);
+  upsideGoldPlatinum.textContent = calcUpside(goldPlatinum, targets.goldPlatinum);
   upsideGoldSilver.textContent = calcUpside(goldSilver, targets.goldSilver);
-  oneToOnePlatinumSilver.textContent = calcUpside(platinumSilver, 1);
-  oneToOnePlatinumGold.textContent = calcUpside(platinumGold, 1);
+  upsidePlatinumSilver.textContent = calcUpside(platinumSilver, targets.platinumSilver);
+  oneToOneGoldPlatinum.textContent = calcUpside(goldPlatinum, 1);
   oneToOneGoldSilver.textContent = calcUpside(goldSilver, 1);
+  oneToOnePlatinumSilver.textContent = calcUpside(platinumSilver, 1);
 };
 
 const formatCurrency = (value) => {

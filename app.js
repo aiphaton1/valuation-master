@@ -358,57 +358,24 @@ const buildDateString = (date) => {
 };
 
 const fetchShanghaiSilver = async () => {
-  const today = new Date();
-  for (let offset = 0; offset < 5; offset += 1) {
-    const checkDate = new Date(today);
-    checkDate.setDate(today.getDate() - offset);
-    const dateString = buildDateString(checkDate);
-    const endpoint = `https://www.shfe.com.cn/data/dailydata/kx/kx${dateString}.dat`;
-    try {
-      const { text, source } = await fetchWithFallbacks(endpoint);
-      const cleaned = text.trim().replace(/^var\\s+\\w+\\s*=\\s*/, "").replace(/;$/, "");
-      const data = safeParseJson(cleaned);
-      const rows = data?.o_curinstrument || data?.o_curinstrment || data?.o_curinstrument || [];
-      const silverRow = rows.find((row) => {
-        const normalized = normalizeRowKeys(row);
-        const product = String(
-          findRowValue(normalized, ["productid", "productname", "instrumentid", "contract"])
-        ).toUpperCase();
-        return product.includes("AG") || product.includes("SILVER");
-      });
-      const normalized = normalizeRowKeys(silverRow);
-      const price = silverRow
-        ? Number(
-            findRowValue(normalized, [
-              "closeprice",
-              "settlementprice",
-              "lastprice",
-              "precloseprice",
-              "openprice",
-            ])
-          )
-        : null;
-      const premium = silverRow
-        ? Number(
-            findRowValue(normalized, [
-              "premium",
-              "premiumprice",
-              "premiumvalue",
-              "premium_rate",
-            ])
-          )
-        : null;
-      return {
-        dateString,
-        price,
-        premium: Number.isFinite(premium) ? premium : null,
-        source,
-      };
-    } catch (error) {
-      // Try previous date.
-    }
+  const endpoint = "https://silverbull.club/shanghai-silver-spot-price/";
+  try {
+    const { text, source } = await fetchWithFallbacks(endpoint);
+    const priceMatch = text.match(/Shanghai\\s+Silver\\s+Spot\\s+Price\\s*\\(CNY\\).*?([0-9]+\\.?[0-9]*)/is);
+    const premiumMatch = text.match(/Shanghai\\s+Silver\\s+Premium.*?([0-9]+\\.?[0-9]*)/is);
+    const dateMatch = text.match(/As\\s+of\\s+([A-Za-z]+\\s+\\d{1,2},\\s+\\d{4})/i);
+    const price = priceMatch ? Number(priceMatch[1]) : null;
+    const premium = premiumMatch ? Number(premiumMatch[1]) : null;
+    const dateString = dateMatch ? dateMatch[1] : null;
+    return {
+      dateString,
+      price,
+      premium: Number.isFinite(premium) ? premium : null,
+      source,
+    };
+  } catch (error) {
+    return { dateString: null, price: null, premium: null, source: null };
   }
-  return { dateString: null, price: null, premium: null, source: null };
 };
 
 const fetchLbmaSilverInventory = async () => {

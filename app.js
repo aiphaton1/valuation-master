@@ -755,12 +755,12 @@ const updateLiveData = async () => {
   if (liveStatus) {
     liveStatus.textContent = success
       ? `Last updated: ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
-      : "Live data unavailable (check connection)";
+      : "Live data unavailable (showing snapshot)";
   }
   if (fundamentalsStatus) {
     fundamentalsStatus.textContent = success
       ? `Updated at ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
-      : "Live feed unavailable";
+      : "Live feed unavailable (showing snapshot)";
   }
   const spotPrice = Number(quoteBySymbol[stooqMap.XAG]?.close);
   updateSilverTrackers(Number.isFinite(spotPrice) ? spotPrice : null);

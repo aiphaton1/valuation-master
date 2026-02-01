@@ -32,6 +32,8 @@ const oneToOnePlatinumSilver = document.getElementById("oneToOnePlatinumSilver")
 const ratioPlatinumSilver = document.getElementById("ratioPlatinumSilver");
 const targetPlatinumSilver = document.getElementById("targetPlatinumSilver");
 const upsidePlatinumSilver = document.getElementById("upsidePlatinumSilver");
+const metalchartsXagStatus = document.getElementById("metalchartsXagStatus");
+const metalchartsXagBody = document.getElementById("metalchartsXagBody");
 const silverTrackerStatus = document.getElementById("silverTrackerStatus");
 const shanghaiPrice = document.getElementById("shanghaiPrice");
 const shanghaiPriceNote = document.getElementById("shanghaiPriceNote");
@@ -348,6 +350,73 @@ const fetchGldHoldings = async () => {
   const latest = toNumber(rows[rows.length - 1][totalKey]);
   const previous = toNumber(rows[rows.length - 2][totalKey]);
   return { latest, previous, source };
+};
+
+const collectMetalchartsPrices = (node, results) => {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((entry) => collectMetalchartsPrices(entry, results));
+    return;
+  }
+  const priceValue =
+    node.price ?? node.value ?? node.last ?? node.spot ?? node.amount ?? node.rate ?? null;
+  if (priceValue !== null && priceValue !== undefined) {
+    const numeric = Number(String(priceValue).replace(/[^0-9.-]/g, ""));
+    const label = node.label || node.name || node.title || node.metal || node.symbol;
+    const unit = node.unit || node.uom || node.currency || node.measure || node.per;
+    if (label && Number.isFinite(numeric)) {
+      results.push({
+        label: String(label),
+        price: numeric,
+        unit: unit ? String(unit) : "--",
+      });
+    }
+  }
+  Object.values(node).forEach((value) => collectMetalchartsPrices(value, results));
+};
+
+const fetchMetalchartsXag = async () => {
+  const endpoint = "https://metalcharts.org/metals/xag";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const results = [];
+  const nextDataMatch = text.match(
+    new RegExp('<script id="__NEXT_DATA__"[^>]*>([\\s\\S]*?)</script>', "i")
+  );
+  if (nextDataMatch) {
+    const data = safeParseJson(nextDataMatch[1]);
+    if (data) {
+      collectMetalchartsPrices(data, results);
+    }
+  }
+  const nuxtMatch = text.match(new RegExp("window\\.__NUXT__=([\\s\\S]*?)</script>", "i"));
+  if (nuxtMatch) {
+    const data = safeParseJson(nuxtMatch[1]);
+    if (data) {
+      collectMetalchartsPrices(data, results);
+    }
+  }
+  const dataAttrMatches = [
+    ...text.matchAll(new RegExp('data-label="([^"]+)"[^>]*data-price="([^"]+)"', "gi")),
+  ];
+  dataAttrMatches.forEach((match) => {
+    const label = match[1];
+    const numeric = Number(String(match[2]).replace(/[^0-9.-]/g, ""));
+    if (label && Number.isFinite(numeric)) {
+      results.push({ label, price: numeric, unit: "--" });
+    }
+  });
+  const unique = [];
+  const seen = new Set();
+  results.forEach((item) => {
+    const key = `${item.label}-${item.unit}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  });
+  return { items: unique, source };
 };
 
 const buildDateString = (date) => {
@@ -700,6 +769,7 @@ const updateLiveData = async () => {
     silver: Number(quoteBySymbol[stooqMap.XAG]?.close),
     platinum: Number(quoteBySymbol[stooqMap.XPT]?.close),
   });
+  updateMetalchartsXag();
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
   renderFundamentals();
 };
@@ -840,6 +910,34 @@ const updateMetalRatios = ({ gold, silver, platinum }) => {
   oneToOneGoldPlatinum.textContent = calcUpside(goldPlatinum, 1);
   oneToOneGoldSilver.textContent = calcUpside(goldSilver, 1);
   oneToOnePlatinumSilver.textContent = calcUpside(platinumSilver, 1);
+};
+
+const updateMetalchartsXag = async () => {
+  if (!metalchartsXagStatus || !metalchartsXagBody) {
+    return;
+  }
+  metalchartsXagBody.innerHTML = "";
+  try {
+    const { items, source } = await fetchMetalchartsXag();
+    if (!items.length) {
+      metalchartsXagStatus.textContent = "No prices found";
+      return;
+    }
+    items.forEach((item) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${item.label}</td>
+        <td>${formatCurrency(item.price)}</td>
+        <td>${item.unit}</td>
+      `;
+      metalchartsXagBody.appendChild(row);
+    });
+    metalchartsXagStatus.textContent = source
+      ? `Updated ${new Date().toLocaleTimeString()} (${source})`
+      : `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (error) {
+    metalchartsXagStatus.textContent = "Live data unavailable";
+  }
 };
 
 const formatCurrency = (value) => {

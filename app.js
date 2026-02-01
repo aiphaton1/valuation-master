@@ -937,6 +937,13 @@ const updateMetalchartsXag = async () => {
       : `Updated ${new Date().toLocaleTimeString()}`;
   } catch (error) {
     metalchartsXagStatus.textContent = "Live data unavailable";
+    metalchartsXagBody.innerHTML = `
+      <tr>
+        <td>Silver spot (fallback)</td>
+        <td>${formatCurrency(29.84)}</td>
+        <td>USD/oz</td>
+      </tr>
+    `;
   }
 };
 

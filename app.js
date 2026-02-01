@@ -920,7 +920,14 @@ const updateMetalchartsXag = async () => {
   try {
     const { items, source } = await fetchMetalchartsXag();
     if (!items.length) {
-      metalchartsXagStatus.textContent = "No prices found";
+      metalchartsXagStatus.textContent = "No prices found (showing fallback)";
+      metalchartsXagBody.innerHTML = `
+        <tr>
+          <td>Silver spot (fallback)</td>
+          <td>${formatCurrency(29.84)}</td>
+          <td>USD/oz</td>
+        </tr>
+      `;
       return;
     }
     items.forEach((item) => {

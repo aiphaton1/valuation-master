@@ -1246,7 +1246,18 @@ const formatLocalValue = (value, unit) => {
   if (!Number.isFinite(value)) {
     return "--";
   }
-  return `${formatNumber(value, 2)} ${unit}`;
+  return `${formatNumber(value, 2)} ${unit || ""}`.trim();
+};
+
+const buildRegionalRow = ({ market, asset, quote, defaultUnit, usdValue, usdNote }) => {
+  const localUnit = quote?.unit || defaultUnit || "--";
+  const local = formatLocalValue(quote?.local, localUnit);
+  const usd = Number.isFinite(usdValue)
+    ? formatCurrency(usdValue)
+    : usdNote
+      ? usdNote
+      : "--";
+  return { market, asset, local, usd };
 };
 
 const updateRegionalMetals = ({ sge, mcx, lme, sources }) => {
@@ -1254,76 +1265,71 @@ const updateRegionalMetals = ({ sge, mcx, lme, sources }) => {
     return;
   }
   regionalMetalsBody.innerHTML = "";
-  const rows = [];
-  if (sge?.XAU) {
-    rows.push({
+  const rows = [
+    buildRegionalRow({
       market: "SGE",
       asset: "Gold (Au99.99)",
-      local: formatLocalValue(sge.XAU.local, sge.XAU.unit),
-      usd: Number.isFinite(sge.XAU.usd) ? formatCurrency(sge.XAU.usd) : "--",
-    });
-  }
-  if (sge?.XAG) {
-    rows.push({
+      quote: sge?.XAU,
+      defaultUnit: "CNY/g",
+      usdValue: sge?.XAU?.usd,
+      usdNote: sge?.XAU ? "--" : "Awaiting data",
+    }),
+    buildRegionalRow({
       market: "SGE",
       asset: "Silver (Ag TD)",
-      local: formatLocalValue(sge.XAG.local, sge.XAG.unit),
-      usd: Number.isFinite(sge.XAG.usd) ? formatCurrency(sge.XAG.usd) : "--",
-    });
-  }
-  if (mcx?.XAU) {
-    rows.push({
+      quote: sge?.XAG,
+      defaultUnit: "CNY/g",
+      usdValue: sge?.XAG?.usd,
+      usdNote: sge?.XAG ? "--" : "Awaiting data",
+    }),
+    buildRegionalRow({
       market: "MCX",
       asset: "Gold",
-      local: formatLocalValue(mcx.XAU.local, mcx.XAU.unit),
-      usd: Number.isFinite(mcx.XAU.usd) ? formatCurrency(mcx.XAU.usd) : "--",
-    });
-  }
-  if (mcx?.XAG) {
-    rows.push({
+      quote: mcx?.XAU,
+      defaultUnit: "INR/10g",
+      usdValue: mcx?.XAU?.usd,
+      usdNote: mcx?.XAU ? "--" : "Awaiting data",
+    }),
+    buildRegionalRow({
       market: "MCX",
       asset: "Silver",
-      local: formatLocalValue(mcx.XAG.local, mcx.XAG.unit),
-      usd: Number.isFinite(mcx.XAG.usd) ? formatCurrency(mcx.XAG.usd) : "--",
-    });
-  }
-  if (mcx?.HG) {
-    rows.push({
+      quote: mcx?.XAG,
+      defaultUnit: "INR/kg",
+      usdValue: mcx?.XAG?.usd,
+      usdNote: mcx?.XAG ? "--" : "Awaiting data",
+    }),
+    buildRegionalRow({
       market: "MCX",
       asset: "Copper",
-      local: formatLocalValue(mcx.HG.local, mcx.HG.unit),
-      usd: Number.isFinite(mcx.HG.usd) ? formatCurrency(mcx.HG.usd) : "--",
-    });
-  }
-  if (lme?.HG) {
-    rows.push({
+      quote: mcx?.HG,
+      defaultUnit: "INR/kg",
+      usdValue: mcx?.HG?.usd,
+      usdNote: mcx?.HG ? "--" : "Awaiting data",
+    }),
+    buildRegionalRow({
       market: "LME",
       asset: "Copper (cash)",
-      local: formatLocalValue(lme.HG.local, lme.HG.unit),
-      usd: Number.isFinite(lme.HG.usdPerLb) ? formatCurrency(lme.HG.usdPerLb) : "--",
-    });
-  }
+      quote: lme?.HG,
+      defaultUnit: "USD/tonne",
+      usdValue: lme?.HG?.usdPerLb,
+      usdNote: lme?.HG ? "--" : "Awaiting data",
+    }),
+  ];
 
-  if (!rows.length) {
-    regionalMetalsBody.innerHTML = `
-      <tr>
-        <td colspan="4">Regional prices unavailable.</td>
-      </tr>
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.market}</td>
+      <td>${row.asset}</td>
+      <td>${row.local}</td>
+      <td>${row.usd}</td>
     `;
-  } else {
-    rows.forEach((row) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.market}</td>
-        <td>${row.asset}</td>
-        <td>${row.local}</td>
-        <td>${row.usd}</td>
-      `;
-      regionalMetalsBody.appendChild(tr);
-    });
-  }
+    regionalMetalsBody.appendChild(tr);
+  });
 
-  const sourceLabel = sources?.length ? sources.join(", ") : null;
+  const sourceLabel = sources?.length
+    ? Array.from(new Set(sources.filter(Boolean))).join(", ")
+    : null;
   regionalMetalsStatus.textContent = sourceLabel
     ? `Updated ${new Date().toLocaleTimeString()} (${sourceLabel})`
     : "Awaiting regional feeds";

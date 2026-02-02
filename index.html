@@ -84,33 +84,6 @@
             <button class="btn ghost small" id="refreshData">Refresh now</button>
           </div>
         </div>
-        <div class="table-card">
-          <div class="table-header">
-            <h3>Data source settings</h3>
-            <span class="table-note">Add an API key to enable live metals pricing.</span>
-          </div>
-          <div class="form-grid">
-            <label>
-              Metals-API key
-              <input type="password" id="metalsApiKey" placeholder="Enter API key" />
-            </label>
-            <label>
-              Base currency
-              <input type="text" id="metalsApiBase" value="USD" />
-            </label>
-            <label class="span-two">
-              Custom spot JSON URL
-              <input
-                type="url"
-                id="metalsCustomUrl"
-                placeholder="https://example.com/spot.json"
-              />
-            </label>
-          </div>
-          <div class="form-actions">
-            <button class="btn ghost" type="button" id="metalsApiSave">Save API settings</button>
-          </div>
-        </div>
         <div class="grid four" id="metricGrid"></div>
       </section>
 
@@ -212,18 +185,19 @@
         </div>
         <div class="table-card">
           <div class="table-header">
-            <h3>Metalcharts XAG prices</h3>
-            <span class="table-note" id="metalchartsXagStatus">Awaiting data</span>
+            <h3>Regional metals snapshot</h3>
+            <span class="table-note" id="regionalMetalsStatus">Awaiting data</span>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Label</th>
-                <th>Price</th>
-                <th>Unit</th>
+                <th>Market</th>
+                <th>Asset</th>
+                <th>Local price</th>
+                <th>USD (FX)</th>
               </tr>
             </thead>
-            <tbody id="metalchartsXagBody"></tbody>
+            <tbody id="regionalMetalsBody"></tbody>
           </table>
         </div>
       </section>

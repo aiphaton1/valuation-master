@@ -14,10 +14,8 @@ const liveStatus = document.getElementById("liveStatus");
 const fundamentalsStatus = document.getElementById("fundamentalsStatus");
 const refreshButton = document.getElementById("refreshData");
 const autoRefreshToggle = document.getElementById("autoRefresh");
-const metalsApiKeyInput = document.getElementById("metalsApiKey");
-const metalsApiBaseInput = document.getElementById("metalsApiBase");
-const metalsApiSave = document.getElementById("metalsApiSave");
-const metalsCustomUrlInput = document.getElementById("metalsCustomUrl");
+const regionalMetalsStatus = document.getElementById("regionalMetalsStatus");
+const regionalMetalsBody = document.getElementById("regionalMetalsBody");
 const silverModelForm = document.getElementById("silverModelForm");
 const silverReset = document.getElementById("silverReset");
 const silverAiscSample = document.getElementById("silverAiscSample");
@@ -36,8 +34,6 @@ const oneToOnePlatinumSilver = document.getElementById("oneToOnePlatinumSilver")
 const ratioPlatinumSilver = document.getElementById("ratioPlatinumSilver");
 const targetPlatinumSilver = document.getElementById("targetPlatinumSilver");
 const upsidePlatinumSilver = document.getElementById("upsidePlatinumSilver");
-const metalchartsXagStatus = document.getElementById("metalchartsXagStatus");
-const metalchartsXagBody = document.getElementById("metalchartsXagBody");
 const silverTrackerStatus = document.getElementById("silverTrackerStatus");
 const shanghaiPrice = document.getElementById("shanghaiPrice");
 const shanghaiPriceNote = document.getElementById("shanghaiPriceNote");
@@ -108,6 +104,17 @@ const fundamentals = [
     trend: "up",
     driver: "Auto catalyst demand steady",
     highlights: ["ETF holdings stable", "Supply tightness", "Substitution watch"],
+  },
+  {
+    category: "commodity",
+    name: "Palladium Spot",
+    symbol: "XPD",
+    price: "$1,035",
+    day: "+0.4%",
+    week: "+0.7%",
+    trend: "up",
+    driver: "Auto catalyst demand watch",
+    highlights: ["Substitution easing", "Supply tight", "Futures curve flat"],
   },
   {
     category: "commodity",
@@ -356,154 +363,251 @@ const fetchGldHoldings = async () => {
   return { latest, previous, source };
 };
 
-const fetchMetalsApi = async () => {
-  const key = metalsApiKeyInput?.value?.trim() || localStorage.getItem("metalsApiKey");
-  const base = metalsApiBaseInput?.value?.trim() || localStorage.getItem("metalsApiBase") || "USD";
-  if (!key) {
-    return { quotes: {}, source: null };
+const parseNumber = (value) => {
+  if (value === null || value === undefined) {
+    return null;
   }
-  const endpoint = `https://metals-api.com/api/latest?access_key=${encodeURIComponent(
-    key
-  )}&base=${encodeURIComponent(base)}&symbols=XAU,XAG,XPT`;
+  const numeric = Number(String(value).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const gramsPerTroyOz = 31.1034768;
+const poundsPerMetricTon = 2204.62262185;
+
+const fetchExchangeRates = async () => {
+  const endpoint = "https://open.er-api.com/v6/latest/USD";
   const { text, source } = await fetchWithFallbacks(endpoint);
   const data = safeParseJson(text);
-  const rates = data?.rates || {};
+  return { rates: data?.rates || {}, source };
+};
+
+const extractCmeQuote = (data) => {
+  const quote =
+    data?.quotes?.[0] ||
+    data?.quote ||
+    data?.data?.[0] ||
+    data?.results?.[0] ||
+    null;
+  if (!quote) {
+    return { last: null, volume: null };
+  }
   return {
-    quotes: {
-      XAU: Number(rates.XAU),
-      XAG: Number(rates.XAG),
-      XPT: Number(rates.XPT),
-    },
-    source,
+    last:
+      parseNumber(quote.last) ??
+      parseNumber(quote.lastTradePrice) ??
+      parseNumber(quote.tradePrice) ??
+      parseNumber(quote.close) ??
+      parseNumber(quote.settle) ??
+      parseNumber(quote.settlement),
+    volume: parseNumber(quote.volume) ?? parseNumber(quote.vol),
   };
 };
 
-const fetchMetalsLive = async () => {
-  const endpoint = "https://api.metals.live/v1/spot";
+const fetchComexQuote = async (productCode) => {
+  const endpoint = `https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/${productCode}`;
   const { text, source } = await fetchWithFallbacks(endpoint);
   const data = safeParseJson(text);
-  if (!Array.isArray(data)) {
-    return { quotes: {}, source: null };
-  }
+  const { last, volume } = extractCmeQuote(data);
+  return { last, volume, source };
+};
+
+const fetchComexQuotes = async () => {
+  const products = {
+    XAU: "GC",
+    XAG: "SI",
+    XPT: "PL",
+    XPD: "PA",
+    HG: "HG",
+  };
+  const entries = await Promise.allSettled(
+    Object.entries(products).map(async ([symbol, productCode]) => {
+      const quote = await fetchComexQuote(productCode);
+      return { symbol, productCode, quote };
+    })
+  );
   const quotes = {};
-  data.forEach((entry) => {
-    if (Array.isArray(entry) && entry.length >= 2) {
-      const label = String(entry[0]).toUpperCase();
-      if (label === "GOLD") {
-        quotes.XAU = Number(entry[1]);
+  const volumes = {};
+  let source = null;
+  entries.forEach((result) => {
+    if (result.status === "fulfilled") {
+      const { symbol, productCode, quote } = result.value;
+      if (Number.isFinite(quote?.last)) {
+        quotes[symbol] = quote.last;
       }
-      if (label === "SILVER") {
-        quotes.XAG = Number(entry[1]);
+      if (Number.isFinite(quote?.volume)) {
+        volumes[productCode] = quote.volume;
       }
-      if (label === "PLATINUM") {
-        quotes.XPT = Number(entry[1]);
-      }
+      source = quote?.source || source;
     }
   });
-  return { quotes, source };
+  return { quotes, volumes, source };
 };
 
-const fetchCustomMetalsSpot = async () => {
-  const url =
-    metalsCustomUrlInput?.value?.trim() || localStorage.getItem("metalsCustomUrl") || "";
-  if (!url) {
-    return { quotes: {}, source: null };
+const convertFromLocal = ({ value, rate, unitsPerOz }) => {
+  if (!Number.isFinite(value) || !Number.isFinite(rate) || !Number.isFinite(unitsPerOz)) {
+    return null;
   }
-  const { text, source } = await fetchWithFallbacks(url);
+  return (value * unitsPerOz) / rate;
+};
+
+const fetchSgeQuotes = async (rates) => {
+  const endpoint = "https://www.sge.com.cn/quote/quote.json";
+  const { text, source } = await fetchWithFallbacks(endpoint);
   const data = safeParseJson(text);
-  if (!data) {
-    return { quotes: {}, source: null };
-  }
-  const rates = data.rates || data.quotes || data.data || data;
+  const rows = data?.data || data?.rows || data?.result || data || [];
+  const normalized = Array.isArray(rows) ? rows.map(normalizeRowKeys) : [];
+  const pickRow = (labels) =>
+    normalized.find((row) =>
+      labels.some((label) =>
+        String(row.productid || row.productname || row.symbol || row.code || "")
+          .toLowerCase()
+          .includes(label)
+      )
+    );
+  const goldRow = pickRow(["au99.99", "au9999", "au99.9", "au999"]);
+  const silverRow = pickRow(["ag(t+d)", "agtd", "ag9999", "ag99.99"]);
+  const getPrice = (row) =>
+    parseNumber(
+      findRowValue(row || {}, [
+        "latestprice",
+        "lastprice",
+        "close",
+        "price",
+        "last",
+        "settle",
+      ])
+    );
+  const goldLocal = getPrice(goldRow);
+  const silverLocal = getPrice(silverRow);
+  const usdRate = rates?.CNY ? Number(rates.CNY) : null;
   return {
     quotes: {
-      XAU: Number(rates.XAU ?? rates.xau ?? rates.gold),
-      XAG: Number(rates.XAG ?? rates.xag ?? rates.silver),
-      XPT: Number(rates.XPT ?? rates.xpt ?? rates.platinum),
+      XAU: {
+        local: goldLocal,
+        usd: convertFromLocal({
+          value: goldLocal,
+          rate: usdRate,
+          unitsPerOz: gramsPerTroyOz,
+        }),
+        unit: "CNY/g",
+      },
+      XAG: {
+        local: silverLocal,
+        usd: convertFromLocal({
+          value: silverLocal,
+          rate: usdRate,
+          unitsPerOz: gramsPerTroyOz,
+        }),
+        unit: "CNY/g",
+      },
     },
     source,
   };
 };
 
-const collectMetalchartsPrices = (node, results) => {
-  if (!node || typeof node !== "object") {
-    return;
+const fetchMcxQuotes = async (rates) => {
+  const endpoint = "https://www.mcxindia.com/backpage.aspx/GetMarketWatchData";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ Commodity: "ALL" }),
+  });
+  if (!response.ok) {
+    throw new Error("MCX request failed");
   }
-  if (Array.isArray(node)) {
-    node.forEach((entry) => collectMetalchartsPrices(entry, results));
-    return;
-  }
-  const priceValue =
-    node.price ?? node.value ?? node.last ?? node.spot ?? node.amount ?? node.rate ?? null;
-  if (priceValue !== null && priceValue !== undefined) {
-    const numeric = Number(String(priceValue).replace(/[^0-9.-]/g, ""));
-    const label = node.label || node.name || node.title || node.metal || node.symbol;
-    const unit = node.unit || node.uom || node.currency || node.measure || node.per;
-    if (label && Number.isFinite(numeric)) {
-      results.push({
-        label: String(label),
-        price: numeric,
-        unit: unit ? String(unit) : "--",
-      });
-    }
-  }
-  Object.values(node).forEach((value) => collectMetalchartsPrices(value, results));
+  const text = await response.text();
+  const raw = safeParseJson(text);
+  const payload = raw?.d ? safeParseJson(raw.d) : raw;
+  const rows = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.Data)
+      ? payload.Data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  const normalized = rows.map(normalizeRowKeys);
+  const findRow = (labels) =>
+    normalized.find((row) =>
+      labels.some((label) =>
+        String(row.symbol || row.name || row.commodity || row.instrument || "")
+          .toLowerCase()
+          .includes(label)
+      )
+    );
+  const goldRow = findRow(["gold"]);
+  const silverRow = findRow(["silver"]);
+  const copperRow = findRow(["copper"]);
+  const getPrice = (row) =>
+    parseNumber(
+      findRowValue(row || {}, ["lastprice", "last", "close", "price", "settle", "ltp"])
+    );
+  const goldLocal = getPrice(goldRow);
+  const silverLocal = getPrice(silverRow);
+  const copperLocal = getPrice(copperRow);
+  const usdRate = rates?.INR ? Number(rates.INR) : null;
+  const unitHint =
+    String(goldRow?.unit || goldRow?.uom || goldRow?.measure || "").toLowerCase() ||
+    "10g";
+  const gramsPerUnit = unitHint.includes("1kg") ? 1000 : unitHint.includes("1g") ? 1 : 10;
+  return {
+    quotes: {
+      XAU: {
+        local: goldLocal,
+        usd: convertFromLocal({
+          value: goldLocal,
+          rate: usdRate,
+          unitsPerOz: gramsPerTroyOz / gramsPerUnit,
+        }),
+        unit: `INR/${gramsPerUnit}g`,
+      },
+      XAG: {
+        local: silverLocal,
+        usd: convertFromLocal({
+          value: silverLocal,
+          rate: usdRate,
+          unitsPerOz: gramsPerTroyOz / gramsPerUnit,
+        }),
+        unit: `INR/${gramsPerUnit}g`,
+      },
+      HG: {
+        local: copperLocal,
+        usd: usdRate ? copperLocal / usdRate : null,
+        unit: "INR/kg",
+      },
+    },
+    source: "mcxindia.com",
+  };
 };
 
-const parseMetalchartsPrices = (text) => {
-  const results = [];
-  const nextDataMatch = text.match(
-    new RegExp('<script id="__NEXT_DATA__"[^>]*>([\\s\\S]*?)</script>', "i")
-  );
-  if (nextDataMatch) {
-    const data = safeParseJson(nextDataMatch[1]);
-    if (data) {
-      collectMetalchartsPrices(data, results);
-    }
-  }
-  const nuxtMatch = text.match(new RegExp("window\\.__NUXT__=([\\s\\S]*?)</script>", "i"));
-  if (nuxtMatch) {
-    const data = safeParseJson(nuxtMatch[1]);
-    if (data) {
-      collectMetalchartsPrices(data, results);
-    }
-  }
-  const dataAttrMatches = [
-    ...text.matchAll(new RegExp('data-label="([^"]+)"[^>]*data-price="([^"]+)"', "gi")),
-  ];
-  dataAttrMatches.forEach((match) => {
-    const label = match[1];
-    const numeric = Number(String(match[2]).replace(/[^0-9.-]/g, ""));
-    if (label && Number.isFinite(numeric)) {
-      results.push({ label, price: numeric, unit: "--" });
-    }
-  });
-  const unique = [];
-  const seen = new Set();
-  results.forEach((item) => {
-    const key = `${item.label}-${item.unit}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(item);
-    }
-  });
-  return unique;
-};
-
-const fetchMetalchartsSpotValue = async (symbol) => {
-  const endpoint = `https://metalcharts.org/metals/${symbol}`;
+const fetchLmeMetals = async () => {
+  const endpoint = "https://www.lme.com/api/trading-data/metal-data";
   const { text, source } = await fetchWithFallbacks(endpoint);
-  const items = parseMetalchartsPrices(text);
-  const preferred = items.find((item) =>
-    String(item.unit || "").toLowerCase().includes("usd")
+  const data = safeParseJson(text);
+  const rows = data?.rows || data?.data?.rows || data?.result?.rows || [];
+  const normalized = Array.isArray(rows) ? rows.map(normalizeRowKeys) : [];
+  const copperRow = normalized.find((row) =>
+    Object.values(row).some((value) => String(value).toLowerCase().includes("copper"))
   );
-  const pick = preferred || items[0] || null;
-  return { item: pick, source };
-};
-
-const fetchMetalchartsXag = async () => {
-  const { item, source } = await fetchMetalchartsSpotValue("xag");
-  return { items: item ? [item] : [], source };
+  const price = parseNumber(
+    findRowValue(copperRow || {}, [
+      "cashbuyer",
+      "last",
+      "close",
+      "price",
+      "cashbuyerunofficial",
+      "cashbuy",
+    ])
+  );
+  return {
+    quotes: {
+      HG: {
+        local: price,
+        usdPerLb: Number.isFinite(price) ? price / poundsPerMetricTon : null,
+        unit: "USD/tonne",
+      },
+    },
+    source,
+  };
 };
 
 const buildDateString = (date) => {
@@ -514,20 +618,15 @@ const buildDateString = (date) => {
 };
 
 const fetchShanghaiSilver = async () => {
-  const endpoint = "https://silverbull.club/shanghai-silver-spot-price/";
   try {
-    const { text, source } = await fetchWithFallbacks(endpoint);
-    const priceMatch = text.match(/Shanghai\\s+Silver\\s+Spot\\s+Price\\s*\\(CNY\\).*?([0-9]+\\.?[0-9]*)/is);
-    const premiumMatch = text.match(/Shanghai\\s+Silver\\s+Premium.*?([0-9]+\\.?[0-9]*)/is);
-    const dateMatch = text.match(/As\\s+of\\s+([A-Za-z]+\\s+\\d{1,2},\\s+\\d{4})/i);
-    const price = priceMatch ? Number(priceMatch[1]) : null;
-    const premium = premiumMatch ? Number(premiumMatch[1]) : null;
-    const dateString = dateMatch ? dateMatch[1] : null;
+    const fxResult = await fetchExchangeRates();
+    const sgeResult = await fetchSgeQuotes(fxResult.rates);
+    const silver = sgeResult.quotes?.XAG;
     return {
-      dateString,
-      price,
-      premium: Number.isFinite(premium) ? premium : null,
-      source,
+      dateString: null,
+      price: Number.isFinite(silver?.usd) ? silver.usd : null,
+      premium: null,
+      source: sgeResult.source || fxResult.source,
     };
   } catch (error) {
     return { dateString: null, price: null, premium: null, source: null };
@@ -629,7 +728,7 @@ const updateSilverTrackers = async (spotPrice) => {
   }
   if (shanghaiPriceNote) {
     shanghaiPriceNote.textContent = Number.isFinite(shanghaiData?.price)
-      ? `SHFE ${shanghaiData?.dateString || "latest"}`
+      ? `SGE ${shanghaiData?.dateString || "latest"}`
       : Number.isFinite(spotPrice)
         ? "Spot proxy"
         : "Source unavailable";
@@ -714,114 +813,143 @@ const updateLiveData = async () => {
     NDX: "ndx",
     DXY: "usdx",
     EEM: "eem",
-    GC: "gc.f",
   };
   const symbols = Object.values(stooqMap);
   let quoteBySymbol = {};
-  let dataSource = null;
-  const metalchartsSymbols = {
-    XAU: "xau",
-    XAG: "xag",
-    XPT: "xpt",
-  };
-  let metalchartsSpotBySymbol = {};
-  let metalchartsSource = null;
-  let apiSpotBySymbol = {};
-  let apiSource = null;
-  try {
-    const results = await Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol)));
-    results.forEach((result, index) => {
+  let stooqSource = null;
+
+  const [stooqSettled, comexSettled, fxSettled, lmeSettled] = await Promise.allSettled([
+    Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol))),
+    fetchComexQuotes(),
+    fetchExchangeRates(),
+    fetchLmeMetals(),
+  ]);
+
+  if (stooqSettled.status === "fulfilled") {
+    stooqSettled.value.forEach((result, index) => {
       if (result.status === "fulfilled" && result.value?.quote) {
         quoteBySymbol[symbols[index]] = result.value.quote;
-        dataSource = result.value.source || dataSource;
+        stooqSource = result.value.source || stooqSource;
       }
     });
-  } catch (error) {
-    quoteBySymbol = {};
   }
 
-  try {
-    const [customResult, metalsApiResult, metalsLiveResult] = await Promise.allSettled([
-      fetchCustomMetalsSpot(),
-      fetchMetalsApi(),
-      fetchMetalsLive(),
-    ]);
-    if (customResult.status === "fulfilled") {
-      apiSpotBySymbol = {
-        ...apiSpotBySymbol,
-        ...customResult.value.quotes,
-      };
-      apiSource = customResult.value.source || apiSource;
-    }
-    if (metalsApiResult.status === "fulfilled") {
-      apiSpotBySymbol = {
-        ...apiSpotBySymbol,
-        ...metalsApiResult.value.quotes,
-      };
-      apiSource = metalsApiResult.value.source || apiSource;
-    }
-    if (metalsLiveResult.status === "fulfilled") {
-      apiSpotBySymbol = {
-        ...apiSpotBySymbol,
-        ...metalsLiveResult.value.quotes,
-      };
-      apiSource = metalsLiveResult.value.source || apiSource;
-    }
-  } catch (error) {
-    apiSpotBySymbol = {};
-  }
+  const comexData = comexSettled.status === "fulfilled" ? comexSettled.value : null;
+  const comexSpotBySymbol = comexData?.quotes || {};
+  const comexVolumes = comexData?.volumes || {};
+  const comexSource = comexData?.source || null;
 
-  try {
-    const metalchartsResults = await Promise.allSettled(
-      Object.entries(metalchartsSymbols).map(async ([symbol, page]) => {
-        const { item, source } = await fetchMetalchartsSpotValue(page);
-        return { symbol, item, source };
-      })
+  const fxData = fxSettled.status === "fulfilled" ? fxSettled.value : null;
+  const fxRates = fxData?.rates || {};
+  const fxSource = fxData?.source || null;
+
+  const [sgeSettled, mcxSettled] = await Promise.allSettled([
+    fetchSgeQuotes(fxRates),
+    fetchMcxQuotes(fxRates),
+  ]);
+
+  const sgeData = sgeSettled.status === "fulfilled" ? sgeSettled.value : null;
+  const mcxData = mcxSettled.status === "fulfilled" ? mcxSettled.value : null;
+  const sgeQuotes = sgeData?.quotes || {};
+  const mcxQuotes = mcxData?.quotes || {};
+  const sgeSource = sgeData?.source || null;
+  const mcxSource = mcxData?.source || null;
+
+  const lmeData = lmeSettled.status === "fulfilled" ? lmeSettled.value : null;
+  const lmeQuotes = lmeData?.quotes || {};
+  const lmeSource = lmeData?.source || null;
+
+  const hasNumericValue = (values) =>
+    Object.values(values || {}).some((value) =>
+      typeof value === "number"
+        ? Number.isFinite(value)
+        : Object.values(value || {}).some((inner) => Number.isFinite(inner))
     );
-    metalchartsResults.forEach((result) => {
-      if (result.status === "fulfilled" && result.value?.item?.price) {
-        metalchartsSpotBySymbol[result.value.symbol] = result.value.item.price;
-        metalchartsSource = result.value.source || metalchartsSource;
-      }
-    });
-  } catch (error) {
-    metalchartsSpotBySymbol = {};
-  }
 
-  fundamentals.forEach((item) => {
-    const stooqSymbol = stooqMap[item.symbol];
+  const getStooqChange = (symbol) => {
+    const stooqSymbol = stooqMap[symbol];
+    if (!stooqSymbol) {
+      return null;
+    }
     const quote = quoteBySymbol[stooqSymbol];
     if (!quote) {
-      const fallbackPrice = apiSpotBySymbol[item.symbol] ?? metalchartsSpotBySymbol[item.symbol];
-      if (Number.isFinite(fallbackPrice)) {
-        item.price = formatSpotValue(fallbackPrice, item.category);
-        item.day = "--";
-        item.week = "--";
-        item.trend = "up";
-        item.driver = apiSpotBySymbol[item.symbol] ? "Metals API spot" : "Metalcharts spot";
-        item.highlights = [
-          apiSpotBySymbol[item.symbol] ? "Metals API fallback" : "Metalcharts fallback",
-          "Daily spot snapshot",
-        ];
-      }
-      return;
+      return null;
     }
     const close = Number(quote.close);
     const open = Number(quote.open);
     const high = Number(quote.high);
     const low = Number(quote.low);
-    const dayChange = open ? ((close - open) / open) * 100 : 0;
-    const rangeChange = low ? ((high - low) / low) * 100 : 0;
-    item.price = Number.isFinite(close) ? formatSpotValue(close, item.category) : item.price;
-    item.day = formatChange(dayChange);
-    item.week = formatChange(rangeChange);
-    item.trend = dayChange >= 0 ? "up" : "down";
-    item.driver = `Live move ${formatChange(dayChange)} vs open`;
-    item.highlights = [
-      `Session range ${formatChange(rangeChange)}`,
-      `High ${Number.isFinite(high) ? high.toFixed(2) : "--"}`,
-      `Low ${Number.isFinite(low) ? low.toFixed(2) : "--"}`,
-    ];
+    const dayChange = open ? ((close - open) / open) * 100 : null;
+    const rangeChange = low ? ((high - low) / low) * 100 : null;
+    return {
+      close,
+      dayChange,
+      rangeChange,
+      high,
+      low,
+    };
+  };
+
+  const metalSymbols = new Set(["XAU", "XAG", "XPT", "XPD", "HG"]);
+  const buildRegionalHighlight = (quote, label) => {
+    if (!Number.isFinite(quote?.local)) {
+      return null;
+    }
+    return `${label} ${formatNumber(quote.local, 2)} ${quote.unit}`;
+  };
+
+  fundamentals.forEach((item) => {
+    const stooqChange = getStooqChange(item.symbol);
+    const comexPrice = comexSpotBySymbol[item.symbol];
+    const sgeQuote = sgeQuotes[item.symbol];
+    const mcxQuote = mcxQuotes[item.symbol];
+    const lmeQuote = item.symbol === "HG" ? lmeQuotes.HG : null;
+    const fallbackPrice =
+      Number.isFinite(comexPrice)
+        ? comexPrice
+        : Number.isFinite(lmeQuote?.usdPerLb)
+          ? lmeQuote.usdPerLb
+          : Number.isFinite(mcxQuote?.usd)
+            ? mcxQuote.usd
+            : Number.isFinite(sgeQuote?.usd)
+              ? sgeQuote.usd
+              : Number.isFinite(stooqChange?.close)
+                ? stooqChange.close
+                : null;
+
+    if (Number.isFinite(fallbackPrice)) {
+      item.price = formatSpotValue(fallbackPrice, item.category);
+    }
+
+    if (stooqChange) {
+      item.day = formatChange(stooqChange.dayChange);
+      item.week = formatChange(stooqChange.rangeChange);
+      item.trend =
+        Number.isFinite(stooqChange.dayChange) && stooqChange.dayChange >= 0 ? "up" : "down";
+      item.driver = `Live move ${formatChange(stooqChange.dayChange)} vs open`;
+      item.highlights = [
+        `Session range ${formatChange(stooqChange.rangeChange)}`,
+        `High ${Number.isFinite(stooqChange.high) ? stooqChange.high.toFixed(2) : "--"}`,
+        `Low ${Number.isFinite(stooqChange.low) ? stooqChange.low.toFixed(2) : "--"}`,
+      ];
+      return;
+    }
+
+    if (metalSymbols.has(item.symbol) && Number.isFinite(fallbackPrice)) {
+      const highlights = [
+        Number.isFinite(comexPrice) ? "COMEX futures" : "Regional snapshot",
+        buildRegionalHighlight(sgeQuote, "SGE"),
+        buildRegionalHighlight(mcxQuote, "MCX"),
+        item.symbol === "HG" && Number.isFinite(lmeQuote?.local)
+          ? `LME ${formatNumber(lmeQuote.local, 2)} ${lmeQuote.unit}`
+          : null,
+      ].filter(Boolean);
+      item.day = "--";
+      item.week = "--";
+      item.trend = "up";
+      item.driver = "Regional futures snapshot";
+      item.highlights = highlights.length ? highlights : item.highlights;
+    }
   });
 
   const lookup = {
@@ -833,28 +961,25 @@ const updateLiveData = async () => {
     if (!symbol) {
       return metric;
     }
-    const stooqSymbol = stooqMap[symbol];
-    const quote = quoteBySymbol[stooqSymbol];
-    if (!quote) {
-      return metric;
-    }
     if (metric.label === "Comex Volume") {
-      const volume = Number(quote.vol);
+      const volume = Number(comexVolumes.GC);
       return {
         ...metric,
         value: Number.isFinite(volume) ? formatVolume(volume) : metric.value,
-        delta: "GC futures",
+        delta: Number.isFinite(volume) ? "GC futures" : metric.delta,
         trend: Number.isFinite(volume) ? "up" : metric.trend,
       };
     }
-    const close = Number(quote.close);
-    const open = Number(quote.open);
-    const dayChange = open ? ((close - open) / open) * 100 : 0;
+    const comexPrice = comexSpotBySymbol[symbol];
+    const stooqChange = getStooqChange(symbol);
+    const close = Number.isFinite(comexPrice) ? comexPrice : stooqChange?.close;
+    const dayChange = stooqChange?.dayChange ?? null;
     return {
       ...metric,
       value: Number.isFinite(close) ? close.toFixed(2) : metric.value,
-      delta: formatChange(dayChange),
-      trend: dayChange >= 0 ? "up" : "down",
+      delta: Number.isFinite(dayChange) ? formatChange(dayChange) : metric.delta,
+      trend:
+        Number.isFinite(dayChange) ? (dayChange >= 0 ? "up" : "down") : metric.trend,
     };
   };
 
@@ -907,63 +1032,74 @@ const updateLiveData = async () => {
   );
 
   const now = new Date();
+  const sources = [stooqSource, comexSource, sgeSource, mcxSource, lmeSource, fxSource]
+    .filter(Boolean)
+    .join(", ");
   const success =
     Object.keys(quoteBySymbol).length > 0 ||
-    Object.keys(apiSpotBySymbol).length > 0 ||
-    Object.keys(metalchartsSpotBySymbol).length > 0;
+    hasNumericValue(comexSpotBySymbol) ||
+    hasNumericValue(sgeQuotes) ||
+    hasNumericValue(mcxQuotes) ||
+    hasNumericValue(lmeQuotes);
   if (liveStatus) {
     liveStatus.textContent = success
-      ? `Last updated: ${now.toLocaleTimeString()} (${dataSource || apiSource || metalchartsSource || "proxy"})`
+      ? `Last updated: ${now.toLocaleTimeString()} (${sources || "proxy"})`
       : "Live data unavailable (showing snapshot)";
   }
   if (fundamentalsStatus) {
     fundamentalsStatus.textContent = success
-      ? `Updated at ${now.toLocaleTimeString()} (${dataSource || apiSource || metalchartsSource || "proxy"})`
+      ? `Updated at ${now.toLocaleTimeString()} (${sources || "proxy"})`
       : "Live feed unavailable (showing snapshot)";
   }
   const fallbackGold = getFundamentalPrice("XAU");
   const fallbackSilver = getFundamentalPrice("XAG");
   const fallbackPlatinum = getFundamentalPrice("XPT");
-  const apiGold = apiSpotBySymbol.XAU;
-  const apiSilver = apiSpotBySymbol.XAG;
-  const apiPlatinum = apiSpotBySymbol.XPT;
-  const metalchartsGold = metalchartsSpotBySymbol.XAU;
-  const metalchartsSilver = metalchartsSpotBySymbol.XAG;
-  const metalchartsPlatinum = metalchartsSpotBySymbol.XPT;
   const spotPrice = Number(quoteBySymbol[stooqMap.XAG]?.close);
+  const comexGold = comexSpotBySymbol.XAU;
+  const comexSilver = comexSpotBySymbol.XAG;
+  const comexPlatinum = comexSpotBySymbol.XPT;
   updateSilverTrackers(
     Number.isFinite(spotPrice)
       ? spotPrice
-      : Number.isFinite(apiSilver)
-        ? apiSilver
-        : Number.isFinite(metalchartsSilver)
-        ? metalchartsSilver
+      : Number.isFinite(comexSilver)
+        ? comexSilver
+        : Number.isFinite(sgeQuotes?.XAG?.usd)
+        ? sgeQuotes.XAG.usd
+        : Number.isFinite(mcxQuotes?.XAG?.usd)
+        ? mcxQuotes.XAG.usd
         : fallbackSilver
   );
   updateMetalRatios({
     gold: Number.isFinite(Number(quoteBySymbol[stooqMap.XAU]?.close))
       ? Number(quoteBySymbol[stooqMap.XAU]?.close)
-      : Number.isFinite(apiGold)
-        ? apiGold
-        : Number.isFinite(metalchartsGold)
-        ? metalchartsGold
+      : Number.isFinite(comexGold)
+        ? comexGold
+        : Number.isFinite(sgeQuotes?.XAU?.usd)
+        ? sgeQuotes.XAU.usd
+        : Number.isFinite(mcxQuotes?.XAU?.usd)
+        ? mcxQuotes.XAU.usd
         : fallbackGold,
     silver: Number.isFinite(Number(quoteBySymbol[stooqMap.XAG]?.close))
       ? Number(quoteBySymbol[stooqMap.XAG]?.close)
-      : Number.isFinite(apiSilver)
-        ? apiSilver
-        : Number.isFinite(metalchartsSilver)
-        ? metalchartsSilver
+      : Number.isFinite(comexSilver)
+        ? comexSilver
+        : Number.isFinite(sgeQuotes?.XAG?.usd)
+        ? sgeQuotes.XAG.usd
+        : Number.isFinite(mcxQuotes?.XAG?.usd)
+        ? mcxQuotes.XAG.usd
         : fallbackSilver,
     platinum: Number.isFinite(Number(quoteBySymbol[stooqMap.XPT]?.close))
       ? Number(quoteBySymbol[stooqMap.XPT]?.close)
-      : Number.isFinite(apiPlatinum)
-        ? apiPlatinum
-        : Number.isFinite(metalchartsPlatinum)
-        ? metalchartsPlatinum
+      : Number.isFinite(comexPlatinum)
+        ? comexPlatinum
         : fallbackPlatinum,
   });
-  updateMetalchartsXag();
+  updateRegionalMetals({
+    sge: sgeQuotes,
+    mcx: mcxQuotes,
+    lme: lmeQuotes,
+    sources: [sgeSource, mcxSource, lmeSource, fxSource].filter(Boolean),
+  });
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
   renderFundamentals();
 };
@@ -1106,46 +1242,91 @@ const updateMetalRatios = ({ gold, silver, platinum }) => {
   oneToOnePlatinumSilver.textContent = calcUpside(platinumSilver, 1);
 };
 
-const updateMetalchartsXag = async () => {
-  if (!metalchartsXagStatus || !metalchartsXagBody) {
+const formatLocalValue = (value, unit) => {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return `${formatNumber(value, 2)} ${unit}`;
+};
+
+const updateRegionalMetals = ({ sge, mcx, lme, sources }) => {
+  if (!regionalMetalsBody || !regionalMetalsStatus) {
     return;
   }
-  metalchartsXagBody.innerHTML = "";
-  try {
-    const { items, source } = await fetchMetalchartsXag();
-    if (!items.length) {
-      metalchartsXagStatus.textContent = "No prices found (showing fallback)";
-      metalchartsXagBody.innerHTML = `
-        <tr>
-          <td>Silver spot (fallback)</td>
-          <td>${formatCurrency(29.84)}</td>
-          <td>USD/oz</td>
-        </tr>
-      `;
-      return;
-    }
-    items.forEach((item) => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${item.label}</td>
-        <td>${formatCurrency(item.price)}</td>
-        <td>${item.unit}</td>
-      `;
-      metalchartsXagBody.appendChild(row);
+  regionalMetalsBody.innerHTML = "";
+  const rows = [];
+  if (sge?.XAU) {
+    rows.push({
+      market: "SGE",
+      asset: "Gold (Au99.99)",
+      local: formatLocalValue(sge.XAU.local, sge.XAU.unit),
+      usd: Number.isFinite(sge.XAU.usd) ? formatCurrency(sge.XAU.usd) : "--",
     });
-    metalchartsXagStatus.textContent = source
-      ? `Updated ${new Date().toLocaleTimeString()} (${source})`
-      : `Updated ${new Date().toLocaleTimeString()}`;
-  } catch (error) {
-    metalchartsXagStatus.textContent = "Live data unavailable";
-    metalchartsXagBody.innerHTML = `
+  }
+  if (sge?.XAG) {
+    rows.push({
+      market: "SGE",
+      asset: "Silver (Ag TD)",
+      local: formatLocalValue(sge.XAG.local, sge.XAG.unit),
+      usd: Number.isFinite(sge.XAG.usd) ? formatCurrency(sge.XAG.usd) : "--",
+    });
+  }
+  if (mcx?.XAU) {
+    rows.push({
+      market: "MCX",
+      asset: "Gold",
+      local: formatLocalValue(mcx.XAU.local, mcx.XAU.unit),
+      usd: Number.isFinite(mcx.XAU.usd) ? formatCurrency(mcx.XAU.usd) : "--",
+    });
+  }
+  if (mcx?.XAG) {
+    rows.push({
+      market: "MCX",
+      asset: "Silver",
+      local: formatLocalValue(mcx.XAG.local, mcx.XAG.unit),
+      usd: Number.isFinite(mcx.XAG.usd) ? formatCurrency(mcx.XAG.usd) : "--",
+    });
+  }
+  if (mcx?.HG) {
+    rows.push({
+      market: "MCX",
+      asset: "Copper",
+      local: formatLocalValue(mcx.HG.local, mcx.HG.unit),
+      usd: Number.isFinite(mcx.HG.usd) ? formatCurrency(mcx.HG.usd) : "--",
+    });
+  }
+  if (lme?.HG) {
+    rows.push({
+      market: "LME",
+      asset: "Copper (cash)",
+      local: formatLocalValue(lme.HG.local, lme.HG.unit),
+      usd: Number.isFinite(lme.HG.usdPerLb) ? formatCurrency(lme.HG.usdPerLb) : "--",
+    });
+  }
+
+  if (!rows.length) {
+    regionalMetalsBody.innerHTML = `
       <tr>
-        <td>Silver spot (fallback)</td>
-        <td>${formatCurrency(29.84)}</td>
-        <td>USD/oz</td>
+        <td colspan="4">Regional prices unavailable.</td>
       </tr>
     `;
+  } else {
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.market}</td>
+        <td>${row.asset}</td>
+        <td>${row.local}</td>
+        <td>${row.usd}</td>
+      `;
+      regionalMetalsBody.appendChild(tr);
+    });
   }
+
+  const sourceLabel = sources?.length ? sources.join(", ") : null;
+  regionalMetalsStatus.textContent = sourceLabel
+    ? `Updated ${new Date().toLocaleTimeString()} (${sourceLabel})`
+    : "Awaiting regional feeds";
 };
 
 const getFundamentalPrice = (symbol) => {
@@ -1157,10 +1338,10 @@ const getFundamentalPrice = (symbol) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
-const formatCurrency = (value) => {
+const formatCurrency = (value, currency = "USD") => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2,
   }).format(value);
 };
@@ -2107,33 +2288,5 @@ if (autoRefreshToggle) {
   });
 }
 
-const loadApiSettings = () => {
-  if (metalsApiKeyInput) {
-    metalsApiKeyInput.value = localStorage.getItem("metalsApiKey") || "";
-  }
-  if (metalsApiBaseInput) {
-    metalsApiBaseInput.value = localStorage.getItem("metalsApiBase") || "USD";
-  }
-  if (metalsCustomUrlInput) {
-    metalsCustomUrlInput.value = localStorage.getItem("metalsCustomUrl") || "";
-  }
-};
-
-if (metalsApiSave) {
-  metalsApiSave.addEventListener("click", () => {
-    if (metalsApiKeyInput) {
-      localStorage.setItem("metalsApiKey", metalsApiKeyInput.value.trim());
-    }
-    if (metalsApiBaseInput) {
-      localStorage.setItem("metalsApiBase", metalsApiBaseInput.value.trim() || "USD");
-    }
-    if (metalsCustomUrlInput) {
-      localStorage.setItem("metalsCustomUrl", metalsCustomUrlInput.value.trim());
-    }
-    updateLiveData();
-  });
-}
-
 updateLiveData();
 startAutoRefresh();
-loadApiSettings();

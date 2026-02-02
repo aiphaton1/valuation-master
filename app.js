@@ -762,12 +762,21 @@ const updateLiveData = async () => {
       ? `Updated at ${now.toLocaleTimeString()} (${dataSource || "proxy"})`
       : "Live feed unavailable (showing snapshot)";
   }
+  const fallbackGold = getFundamentalPrice("XAU");
+  const fallbackSilver = getFundamentalPrice("XAG");
+  const fallbackPlatinum = getFundamentalPrice("XPT");
   const spotPrice = Number(quoteBySymbol[stooqMap.XAG]?.close);
-  updateSilverTrackers(Number.isFinite(spotPrice) ? spotPrice : null);
+  updateSilverTrackers(Number.isFinite(spotPrice) ? spotPrice : fallbackSilver);
   updateMetalRatios({
-    gold: Number(quoteBySymbol[stooqMap.XAU]?.close),
-    silver: Number(quoteBySymbol[stooqMap.XAG]?.close),
-    platinum: Number(quoteBySymbol[stooqMap.XPT]?.close),
+    gold: Number.isFinite(Number(quoteBySymbol[stooqMap.XAU]?.close))
+      ? Number(quoteBySymbol[stooqMap.XAU]?.close)
+      : fallbackGold,
+    silver: Number.isFinite(Number(quoteBySymbol[stooqMap.XAG]?.close))
+      ? Number(quoteBySymbol[stooqMap.XAG]?.close)
+      : fallbackSilver,
+    platinum: Number.isFinite(Number(quoteBySymbol[stooqMap.XPT]?.close))
+      ? Number(quoteBySymbol[stooqMap.XPT]?.close)
+      : fallbackPlatinum,
   });
   updateMetalchartsXag();
   renderMetrics(document.querySelector(".toggle-btn.active")?.dataset.mode || "premium");
@@ -952,6 +961,15 @@ const updateMetalchartsXag = async () => {
       </tr>
     `;
   }
+};
+
+const getFundamentalPrice = (symbol) => {
+  const entry = fundamentals.find((item) => item.symbol === symbol);
+  if (!entry) {
+    return null;
+  }
+  const numeric = Number(String(entry.price || "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(numeric) ? numeric : null;
 };
 
 const formatCurrency = (value) => {

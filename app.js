@@ -373,12 +373,72 @@ const parseNumber = (value) => {
 
 const gramsPerTroyOz = 31.1034768;
 const poundsPerMetricTon = 2204.62262185;
+const metalchartsSymbolMap = {
+  gold: "XAU",
+  silver: "XAG",
+  platinum: "XPT",
+  palladium: "XPD",
+  copper: "HG",
+};
 
 const fetchExchangeRates = async () => {
   const endpoint = "https://open.er-api.com/v6/latest/USD";
   const { text, source } = await fetchWithFallbacks(endpoint);
   const data = safeParseJson(text);
   return { rates: data?.rates || {}, source };
+};
+
+const fetchMetalchartsPrices = async () => {
+  const endpoint = "https://www.metalcharts.org/api/prices";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const data = safeParseJson(text);
+  const quotes = {};
+  const addQuote = (key, value) => {
+    if (!key) {
+      return;
+    }
+    const symbol = metalchartsSymbolMap[key];
+    if (!symbol) {
+      return;
+    }
+    const price = parseNumber(value?.price ?? value?.spot ?? value?.value ?? value?.last ?? value);
+    if (Number.isFinite(price)) {
+      quotes[symbol] = price;
+    }
+  };
+
+  if (Array.isArray(data)) {
+    data.forEach((entry) => {
+      const label = String(entry?.metal || entry?.name || entry?.symbol || entry?.code || "")
+        .toLowerCase()
+        .trim();
+      const key = Object.keys(metalchartsSymbolMap).find((metal) => label.includes(metal));
+      addQuote(key, entry);
+    });
+  } else if (data && typeof data === "object") {
+    const nested = Array.isArray(data.prices)
+      ? data.prices
+      : Array.isArray(data.data)
+        ? data.data
+        : null;
+    if (nested) {
+      nested.forEach((entry) => {
+        const label = String(entry?.metal || entry?.name || entry?.symbol || entry?.code || "")
+          .toLowerCase()
+          .trim();
+        const key = Object.keys(metalchartsSymbolMap).find((metal) => label.includes(metal));
+        addQuote(key, entry);
+      });
+    } else {
+      Object.entries(data).forEach(([key, value]) => {
+        const normalized = key.toLowerCase();
+        const match = Object.keys(metalchartsSymbolMap).find((metal) => normalized.includes(metal));
+        addQuote(match, value);
+      });
+    }
+  }
+
+  return { quotes, source };
 };
 
 const extractCmeQuote = (data) => {
@@ -818,11 +878,13 @@ const updateLiveData = async () => {
   let quoteBySymbol = {};
   let stooqSource = null;
 
-  const [stooqSettled, comexSettled, fxSettled, lmeSettled] = await Promise.allSettled([
+  const [stooqSettled, comexSettled, fxSettled, lmeSettled, metalchartsSettled] =
+    await Promise.allSettled([
     Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol))),
     fetchComexQuotes(),
     fetchExchangeRates(),
     fetchLmeMetals(),
+    fetchMetalchartsPrices(),
   ]);
 
   if (stooqSettled.status === "fulfilled") {
@@ -858,6 +920,11 @@ const updateLiveData = async () => {
   const lmeData = lmeSettled.status === "fulfilled" ? lmeSettled.value : null;
   const lmeQuotes = lmeData?.quotes || {};
   const lmeSource = lmeData?.source || null;
+
+  const metalchartsData =
+    metalchartsSettled.status === "fulfilled" ? metalchartsSettled.value : null;
+  const metalchartsQuotes = metalchartsData?.quotes || {};
+  const metalchartsSource = metalchartsData?.source || null;
 
   const hasNumericValue = (values) =>
     Object.values(values || {}).some((value) =>
@@ -901,21 +968,24 @@ const updateLiveData = async () => {
   fundamentals.forEach((item) => {
     const stooqChange = getStooqChange(item.symbol);
     const comexPrice = comexSpotBySymbol[item.symbol];
+    const metalchartsPrice = metalchartsQuotes[item.symbol];
     const sgeQuote = sgeQuotes[item.symbol];
     const mcxQuote = mcxQuotes[item.symbol];
     const lmeQuote = item.symbol === "HG" ? lmeQuotes.HG : null;
     const fallbackPrice =
       Number.isFinite(comexPrice)
         ? comexPrice
-        : Number.isFinite(lmeQuote?.usdPerLb)
-          ? lmeQuote.usdPerLb
-          : Number.isFinite(mcxQuote?.usd)
-            ? mcxQuote.usd
-            : Number.isFinite(sgeQuote?.usd)
-              ? sgeQuote.usd
-              : Number.isFinite(stooqChange?.close)
-                ? stooqChange.close
-                : null;
+        : Number.isFinite(metalchartsPrice)
+          ? metalchartsPrice
+          : Number.isFinite(lmeQuote?.usdPerLb)
+            ? lmeQuote.usdPerLb
+            : Number.isFinite(mcxQuote?.usd)
+              ? mcxQuote.usd
+              : Number.isFinite(sgeQuote?.usd)
+                ? sgeQuote.usd
+                : Number.isFinite(stooqChange?.close)
+                  ? stooqChange.close
+                  : null;
 
     if (Number.isFinite(fallbackPrice)) {
       item.price = formatSpotValue(fallbackPrice, item.category);
@@ -937,7 +1007,11 @@ const updateLiveData = async () => {
 
     if (metalSymbols.has(item.symbol) && Number.isFinite(fallbackPrice)) {
       const highlights = [
-        Number.isFinite(comexPrice) ? "COMEX futures" : "Regional snapshot",
+        Number.isFinite(comexPrice)
+          ? "COMEX futures"
+          : Number.isFinite(metalchartsPrice)
+            ? "Metalcharts spot"
+            : "Regional snapshot",
         buildRegionalHighlight(sgeQuote, "SGE"),
         buildRegionalHighlight(mcxQuote, "MCX"),
         item.symbol === "HG" && Number.isFinite(lmeQuote?.local)
@@ -1032,12 +1106,21 @@ const updateLiveData = async () => {
   );
 
   const now = new Date();
-  const sources = [stooqSource, comexSource, sgeSource, mcxSource, lmeSource, fxSource]
+  const sources = [
+    stooqSource,
+    comexSource,
+    metalchartsSource,
+    sgeSource,
+    mcxSource,
+    lmeSource,
+    fxSource,
+  ]
     .filter(Boolean)
     .join(", ");
   const success =
     Object.keys(quoteBySymbol).length > 0 ||
     hasNumericValue(comexSpotBySymbol) ||
+    hasNumericValue(metalchartsQuotes) ||
     hasNumericValue(sgeQuotes) ||
     hasNumericValue(mcxQuotes) ||
     hasNumericValue(lmeQuotes);
@@ -1058,11 +1141,16 @@ const updateLiveData = async () => {
   const comexGold = comexSpotBySymbol.XAU;
   const comexSilver = comexSpotBySymbol.XAG;
   const comexPlatinum = comexSpotBySymbol.XPT;
+  const metalchartsGold = metalchartsQuotes.XAU;
+  const metalchartsSilver = metalchartsQuotes.XAG;
+  const metalchartsPlatinum = metalchartsQuotes.XPT;
   updateSilverTrackers(
     Number.isFinite(spotPrice)
       ? spotPrice
       : Number.isFinite(comexSilver)
         ? comexSilver
+        : Number.isFinite(metalchartsSilver)
+        ? metalchartsSilver
         : Number.isFinite(sgeQuotes?.XAG?.usd)
         ? sgeQuotes.XAG.usd
         : Number.isFinite(mcxQuotes?.XAG?.usd)
@@ -1074,6 +1162,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XAU]?.close)
       : Number.isFinite(comexGold)
         ? comexGold
+        : Number.isFinite(metalchartsGold)
+        ? metalchartsGold
         : Number.isFinite(sgeQuotes?.XAU?.usd)
         ? sgeQuotes.XAU.usd
         : Number.isFinite(mcxQuotes?.XAU?.usd)
@@ -1083,6 +1173,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XAG]?.close)
       : Number.isFinite(comexSilver)
         ? comexSilver
+        : Number.isFinite(metalchartsSilver)
+        ? metalchartsSilver
         : Number.isFinite(sgeQuotes?.XAG?.usd)
         ? sgeQuotes.XAG.usd
         : Number.isFinite(mcxQuotes?.XAG?.usd)
@@ -1092,6 +1184,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XPT]?.close)
       : Number.isFinite(comexPlatinum)
         ? comexPlatinum
+        : Number.isFinite(metalchartsPlatinum)
+        ? metalchartsPlatinum
         : fallbackPlatinum,
   });
   updateRegionalMetals({

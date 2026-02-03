@@ -441,6 +441,37 @@ const fetchMetalchartsPrices = async () => {
   return { quotes, source };
 };
 
+const fetchMetalsLiveSpot = async () => {
+  const endpoint = "https://api.metals.live/v1/spot";
+  const { text, source } = await fetchWithFallbacks(endpoint);
+  const data = safeParseJson(text);
+  const quotes = {};
+  if (Array.isArray(data)) {
+    data.forEach((entry) => {
+      if (!Array.isArray(entry) || entry.length < 2) {
+        return;
+      }
+      const label = String(entry[0]).toLowerCase();
+      const price = parseNumber(entry[1]);
+      if (!Number.isFinite(price)) {
+        return;
+      }
+      if (label.includes("gold")) {
+        quotes.XAU = price;
+      } else if (label.includes("silver")) {
+        quotes.XAG = price;
+      } else if (label.includes("platinum")) {
+        quotes.XPT = price;
+      } else if (label.includes("palladium")) {
+        quotes.XPD = price;
+      } else if (label.includes("copper")) {
+        quotes.HG = price;
+      }
+    });
+  }
+  return { quotes, source };
+};
+
 const extractCmeQuote = (data) => {
   const quote =
     data?.quotes?.[0] ||
@@ -878,13 +909,20 @@ const updateLiveData = async () => {
   let quoteBySymbol = {};
   let stooqSource = null;
 
-  const [stooqSettled, comexSettled, fxSettled, lmeSettled, metalchartsSettled] =
-    await Promise.allSettled([
+  const [
+    stooqSettled,
+    comexSettled,
+    fxSettled,
+    lmeSettled,
+    metalchartsSettled,
+    metalsLiveSettled,
+  ] = await Promise.allSettled([
     Promise.allSettled(symbols.map((symbol) => fetchStooqQuote(symbol))),
     fetchComexQuotes(),
     fetchExchangeRates(),
     fetchLmeMetals(),
     fetchMetalchartsPrices(),
+    fetchMetalsLiveSpot(),
   ]);
 
   if (stooqSettled.status === "fulfilled") {
@@ -926,6 +964,11 @@ const updateLiveData = async () => {
   const metalchartsQuotes = metalchartsData?.quotes || {};
   const metalchartsSource = metalchartsData?.source || null;
 
+  const metalsLiveData =
+    metalsLiveSettled.status === "fulfilled" ? metalsLiveSettled.value : null;
+  const metalsLiveQuotes = metalsLiveData?.quotes || {};
+  const metalsLiveSource = metalsLiveData?.source || null;
+
   const hasNumericValue = (values) =>
     Object.values(values || {}).some((value) =>
       typeof value === "number"
@@ -958,6 +1001,21 @@ const updateLiveData = async () => {
   };
 
   const metalSymbols = new Set(["XAU", "XAG", "XPT", "XPD", "HG"]);
+  const getBestSpotPrice = (symbol) => {
+    const comexPrice = comexSpotBySymbol[symbol];
+    if (Number.isFinite(comexPrice)) {
+      return { price: comexPrice, source: "COMEX" };
+    }
+    const metalsLivePrice = metalsLiveQuotes[symbol];
+    if (Number.isFinite(metalsLivePrice)) {
+      return { price: metalsLivePrice, source: "Metals.live" };
+    }
+    const metalchartsPrice = metalchartsQuotes[symbol];
+    if (Number.isFinite(metalchartsPrice)) {
+      return { price: metalchartsPrice, source: "Metalcharts" };
+    }
+    return { price: null, source: null };
+  };
   const buildRegionalHighlight = (quote, label) => {
     if (!Number.isFinite(quote?.local)) {
       return null;
@@ -967,25 +1025,22 @@ const updateLiveData = async () => {
 
   fundamentals.forEach((item) => {
     const stooqChange = getStooqChange(item.symbol);
-    const comexPrice = comexSpotBySymbol[item.symbol];
-    const metalchartsPrice = metalchartsQuotes[item.symbol];
+    const { price: bestSpot, source: bestSpotSource } = getBestSpotPrice(item.symbol);
     const sgeQuote = sgeQuotes[item.symbol];
     const mcxQuote = mcxQuotes[item.symbol];
     const lmeQuote = item.symbol === "HG" ? lmeQuotes.HG : null;
     const fallbackPrice =
-      Number.isFinite(comexPrice)
-        ? comexPrice
-        : Number.isFinite(metalchartsPrice)
-          ? metalchartsPrice
-          : Number.isFinite(lmeQuote?.usdPerLb)
-            ? lmeQuote.usdPerLb
-            : Number.isFinite(mcxQuote?.usd)
-              ? mcxQuote.usd
-              : Number.isFinite(sgeQuote?.usd)
-                ? sgeQuote.usd
-                : Number.isFinite(stooqChange?.close)
-                  ? stooqChange.close
-                  : null;
+      Number.isFinite(bestSpot)
+        ? bestSpot
+        : Number.isFinite(lmeQuote?.usdPerLb)
+          ? lmeQuote.usdPerLb
+          : Number.isFinite(mcxQuote?.usd)
+            ? mcxQuote.usd
+            : Number.isFinite(sgeQuote?.usd)
+              ? sgeQuote.usd
+              : Number.isFinite(stooqChange?.close)
+                ? stooqChange.close
+                : null;
 
     if (Number.isFinite(fallbackPrice)) {
       item.price = formatSpotValue(fallbackPrice, item.category);
@@ -1007,11 +1062,7 @@ const updateLiveData = async () => {
 
     if (metalSymbols.has(item.symbol) && Number.isFinite(fallbackPrice)) {
       const highlights = [
-        Number.isFinite(comexPrice)
-          ? "COMEX futures"
-          : Number.isFinite(metalchartsPrice)
-            ? "Metalcharts spot"
-            : "Regional snapshot",
+        bestSpotSource ? `${bestSpotSource} spot` : "Regional snapshot",
         buildRegionalHighlight(sgeQuote, "SGE"),
         buildRegionalHighlight(mcxQuote, "MCX"),
         item.symbol === "HG" && Number.isFinite(lmeQuote?.local)
@@ -1044,9 +1095,9 @@ const updateLiveData = async () => {
         trend: Number.isFinite(volume) ? "up" : metric.trend,
       };
     }
-    const comexPrice = comexSpotBySymbol[symbol];
     const stooqChange = getStooqChange(symbol);
-    const close = Number.isFinite(comexPrice) ? comexPrice : stooqChange?.close;
+    const { price: bestSpot } = getBestSpotPrice(symbol);
+    const close = Number.isFinite(bestSpot) ? bestSpot : stooqChange?.close;
     const dayChange = stooqChange?.dayChange ?? null;
     return {
       ...metric,
@@ -1109,6 +1160,7 @@ const updateLiveData = async () => {
   const sources = [
     stooqSource,
     comexSource,
+    metalsLiveSource,
     metalchartsSource,
     sgeSource,
     mcxSource,
@@ -1120,6 +1172,7 @@ const updateLiveData = async () => {
   const success =
     Object.keys(quoteBySymbol).length > 0 ||
     hasNumericValue(comexSpotBySymbol) ||
+    hasNumericValue(metalsLiveQuotes) ||
     hasNumericValue(metalchartsQuotes) ||
     hasNumericValue(sgeQuotes) ||
     hasNumericValue(mcxQuotes) ||
@@ -1141,6 +1194,9 @@ const updateLiveData = async () => {
   const comexGold = comexSpotBySymbol.XAU;
   const comexSilver = comexSpotBySymbol.XAG;
   const comexPlatinum = comexSpotBySymbol.XPT;
+  const metalsLiveGold = metalsLiveQuotes.XAU;
+  const metalsLiveSilver = metalsLiveQuotes.XAG;
+  const metalsLivePlatinum = metalsLiveQuotes.XPT;
   const metalchartsGold = metalchartsQuotes.XAU;
   const metalchartsSilver = metalchartsQuotes.XAG;
   const metalchartsPlatinum = metalchartsQuotes.XPT;
@@ -1149,6 +1205,8 @@ const updateLiveData = async () => {
       ? spotPrice
       : Number.isFinite(comexSilver)
         ? comexSilver
+        : Number.isFinite(metalsLiveSilver)
+        ? metalsLiveSilver
         : Number.isFinite(metalchartsSilver)
         ? metalchartsSilver
         : Number.isFinite(sgeQuotes?.XAG?.usd)
@@ -1162,6 +1220,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XAU]?.close)
       : Number.isFinite(comexGold)
         ? comexGold
+        : Number.isFinite(metalsLiveGold)
+        ? metalsLiveGold
         : Number.isFinite(metalchartsGold)
         ? metalchartsGold
         : Number.isFinite(sgeQuotes?.XAU?.usd)
@@ -1173,6 +1233,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XAG]?.close)
       : Number.isFinite(comexSilver)
         ? comexSilver
+        : Number.isFinite(metalsLiveSilver)
+        ? metalsLiveSilver
         : Number.isFinite(metalchartsSilver)
         ? metalchartsSilver
         : Number.isFinite(sgeQuotes?.XAG?.usd)
@@ -1184,6 +1246,8 @@ const updateLiveData = async () => {
       ? Number(quoteBySymbol[stooqMap.XPT]?.close)
       : Number.isFinite(comexPlatinum)
         ? comexPlatinum
+        : Number.isFinite(metalsLivePlatinum)
+        ? metalsLivePlatinum
         : Number.isFinite(metalchartsPlatinum)
         ? metalchartsPlatinum
         : fallbackPlatinum,

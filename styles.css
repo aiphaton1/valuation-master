@@ -462,6 +462,9 @@ a {
   border: 1px solid rgba(57, 255, 20, 0.4);
   background: rgba(5, 11, 5, 0.9);
   color: var(--text);
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .calculator-form textarea {
@@ -471,6 +474,9 @@ a {
   background: rgba(5, 11, 5, 0.9);
   color: var(--text);
   resize: vertical;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .form-grid .span-two {
@@ -532,12 +538,33 @@ a {
 
 .form-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-top: 18px;
 }
 
+.form-actions .inline-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .calc-results {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 
